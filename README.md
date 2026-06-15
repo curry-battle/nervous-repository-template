@@ -66,3 +66,5 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 
 - [docs/design.md](./docs/design.md) — 思想・仕組み・type 語彙・リリースの流れ・サプライチェーン対策・運用ルール
 - [docs/adoption-guide.md](./docs/adoption-guide.md) — このリポの一部/全部を他リポへ取り込むときの **LLM 向けプレイブック**（AskUser でモジュール選択 → 設定内容を決定 → 適用・検証）
+
+<!-- ci smoke test -->
