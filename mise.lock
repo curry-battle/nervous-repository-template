@@ -1,0 +1,29 @@
+[[tools.ghalint]]
+version = "1.5.6"
+backend = "aqua:suzuki-shunsuke/ghalint"
+"platforms.linux-x64" = { checksum = "sha256:98ee0e3330de7286f470d1e89c03ff7ce70d7a5998ba0f15969c400447be579c", url = "https://github.com/suzuki-shunsuke/ghalint/releases/download/v1.5.6/ghalint_1.5.6_linux_amd64.tar.gz"}
+"platforms.macos-arm64" = { checksum = "sha256:1262cac411e27b4653e6b66b7b06580ebcc2026fdd903e12e6cb0e4591639de6", url = "https://github.com/suzuki-shunsuke/ghalint/releases/download/v1.5.6/ghalint_1.5.6_darwin_arm64.tar.gz"}
+
+[[tools.gitleaks]]
+version = "8.30.1"
+backend = "aqua:gitleaks/gitleaks"
+"platforms.linux-x64" = { checksum = "sha256:551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb", url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"}
+"platforms.macos-arm64" = { checksum = "sha256:b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5", url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz"}
+
+[[tools.hadolint]]
+version = "2.14.0"
+backend = "aqua:hadolint/hadolint"
+"platforms.linux-x64" = { checksum = "sha256:6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47", url = "https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64"}
+"platforms.macos-arm64" = { checksum = "sha256:3625e2e9f43dcfe7bd38738a5f5520ed50ce39ed28485266e6803dd7bc197b10", url = "https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-macos-arm64"}
+
+[[tools.pinact]]
+version = "4.1.0"
+backend = "aqua:suzuki-shunsuke/pinact"
+"platforms.linux-x64" = { checksum = "sha256:8fcbf1b3e95551c82fd995535e3c1defa70e23299ce36eb3afd6c98778de6ca0", url = "https://github.com/suzuki-shunsuke/pinact/releases/download/v4.1.0/pinact_linux_amd64.tar.gz"}
+"platforms.macos-arm64" = { checksum = "sha256:b670063ccfa178cdb5c7107d14e3de896f10b93edcc7dbe38b840cb99f2536db", url = "https://github.com/suzuki-shunsuke/pinact/releases/download/v4.1.0/pinact_darwin_arm64.tar.gz"}
+
+[[tools.prek]]
+version = "0.4.4"
+backend = "aqua:j178/prek"
+"platforms.linux-x64" = { checksum = "sha256:4a0aa963c6468ebcd4734ee7d763e8c1223bfb9bdabcb4528a7afac6b0147e12", url = "https://github.com/j178/prek/releases/download/v0.4.4/prek-x86_64-unknown-linux-musl.tar.gz"}
+"platforms.macos-arm64" = { checksum = "sha256:d3d74f96bbb9fe88d14bdb3119501f8f39602b885e19f57c6567791599afd231", url = "https://github.com/j178/prek/releases/download/v0.4.4/prek-aarch64-apple-darwin.tar.gz"}

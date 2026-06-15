@@ -1,0 +1,72 @@
+{
+  // Renovate 設定（Mend ホスト型 GitHub App で実行する前提）。
+  // 対象は 3 面: GitHub Actions(uses:) / pre-commit hook(rev) / mise(mise.toml)。
+  // サプライチェーン攻撃を意識し「不変参照に固定」「公開直後は採用しない(cooldown)」を軸にする。
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  extends: [
+    "config:recommended",
+    // GitHub Actions を full commit SHA(digest) に pin し続ける
+    "helpers:pinGitHubActionDigests",
+    // Docker ベースイメージを digest 固定し続ける（dockerfile / docker-compose manager 対象）
+    "docker:pinDigests",
+  ],
+
+  // 可視化・棚卸し用ダッシュボード（Issue として一覧化）
+  dependencyDashboard: true,
+  configMigration: true,
+
+  // PR を Conventional に: "chore(deps): ..." → PR title チェック通過 & autolabeler が chore→🧰 Maintenance
+  semanticCommits: "enabled",
+  semanticCommitType: "chore",
+  semanticCommitScope: "deps",
+
+  // === サプライチェーン対策の中核: cooldown（公開から一定期間が経つまで採用しない）===
+  // 悪意ある新規リリースが検知・取り下げされる時間を確保する。
+  minimumReleaseAge: "7 days",
+  // strict: cooldown 未経過のものは branch / PR を作らせない
+  //（これが無いと minimumReleaseAge が素通りすることがある）
+  internalChecksFilter: "strict",
+
+  // バージョンは不変な参照に寄せる
+  rangeStrategy: "pin",
+
+  // レビュー漏れ（=攻撃の見落とし）を抑えるため PR 数を絞る
+  prConcurrentLimit: 5,
+  prHourlyLimit: 2,
+
+  // 既定では自動マージしない。依存更新は人がレビューする。
+  // 解禁する場合も「digest/patch のみ + 必須チェック green + cooldown 経過」に限定すること。
+  automerge: false,
+
+  // pre-commit hook も Renovate で更新（manager はデフォルト無効なので明示的に有効化）
+  "pre-commit": { enabled: true },
+  // mise ツール(prek / pinact)も Renovate で更新
+  mise: { enabled: true },
+
+  packageRules: [
+    {
+      description: "メジャー更新はリスクが高いので cooldown を延ばし、必ず人がレビューする",
+      matchUpdateTypes: ["major"],
+      minimumReleaseAge: "14 days",
+    },
+    {
+      description: "@types/node は runtime の Node メジャー(=22)に揃える。Node を上げる時にこの制約も更新する",
+      matchPackageNames: ["@types/node"],
+      allowedVersions: "<23",
+    },
+    {
+      description: "GitHub Actions / pre-commit は不変参照(digest)で固定し続ける",
+      matchManagers: ["github-actions", "pre-commit"],
+      pinDigests: true,
+    },
+  ],
+
+  // 脆弱性修正は cooldown を待たず取り込む（速度優先。"security" 名のリリースを早期採用するリスクは承知の上）
+  vulnerabilityAlerts: {
+    enabled: true,
+    minimumReleaseAge: "0 days",
+    labels: ["security"],
+  },
+  osvVulnerabilityAlerts: true,
+}

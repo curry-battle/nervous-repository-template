@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp
+
+# mise（ローカル上書きは無視。mise.toml / mise.lock はコミットする）
+mise.local.toml
+.mise.local.toml
+mise.*.local.toml
+
+# Logs / tmp
+*.log
+tmp/
+
+# Node（将来アプリコードを追加した場合）
+node_modules/
+dist/
+
+# Python
+__pycache__/
+*.pyc

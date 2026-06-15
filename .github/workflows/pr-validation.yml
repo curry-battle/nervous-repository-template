@@ -1,0 +1,186 @@
+name: PR Validation
+
+# PR の入口で 2 つを検証する:
+#   1. PR title が Conventional Commits 形式か (squash 後の main コミットになるため必須)
+#   2. ブランチ名が type/desc 規則か
+# commit message 自体はローカル prek のみで縛る方針なので CI では検証しない。
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  # --- PR title を Conventional Commits でチェック -----------------------------
+  pr-title:
+    name: Validate PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # release-drafter / commit-check.toml と同一の type 語彙に揃える
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          # scope は任意・自由記述（中身は縛らない）
+          requireScope: false
+          # subject の整形ルールは課さない（最小: type 形式のみ）
+          # 破壊的変更の "!" を許可
+          # （subjectPattern を設定しないことで subject 文面は自由）
+
+  # --- ブランチ名を Conventional Branch でチェック -----------------------------
+  branch-name:
+    name: Validate branch name
+    # dependabot の branch (dependabot/*) は規則対象外。skip された required check は pass 扱い。
+    if: ${{ github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write  # pr-comments を出す場合に必要
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false  # 後続ステップにトークンを残さない
+      - uses: commit-check/commit-check-action@c7245f6139b55db23f92266c2f0ff8429c64de80 # v2.8.0
+        with:
+          message: false       # commit message はローカル prek のみ
+          branch: true         # ブランチ名のみ CI で検証
+          author-name: false
+          author-email: false
+          job-summary: true
+          pr-comments: ${{ github.event_name == 'pull_request' }}
+
+  # --- GitHub Actions が full commit SHA で固定されているか検証 ----------------
+  # fix: "false" = 修正せず検証のみ。未固定の uses: があれば CI を失敗させる。
+  pin-actions:
+    name: Verify actions are SHA-pinned
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: suzuki-shunsuke/pinact-action@896d595f299e71d65b9d28349d6956abe144390a # v3.0.0
+        with:
+          fix: "false"
+
+  # --- pre-commit hook の rev が full commit SHA で固定されているか検証 ----------
+  pin-hooks:
+    name: Verify hooks are SHA-pinned
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-hook-rev-sha.sh
+
+  # --- mise ツールが mise.lock で checksum 固定されているか「静的に」検証 ----------
+  # mise install は実行しない（PR 側 mise.toml/mise.lock による任意コード実行を避けるため）。
+  # mise.lock が無ければ失敗する（検証の迂回を防ぐ）。
+  mise-locked:
+    name: Verify mise tools are locked
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-mise-locked.sh
+
+  # --- Dockerfile / compose の検証（lint + base image の digest 固定 + compose 構文）---
+  docker:
+    name: Verify Docker (lint / digest-pinned / compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - name: hadolint (all Dockerfiles, recursive)
+        uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
+        with:
+          recursive: true
+      - name: Check base images are digest-pinned
+        run: bash scripts/check-docker-digests.sh
+      - name: Validate compose files
+        run: |
+          mapfile -t files < <(find . -path ./node_modules -prune -o -type f \
+            \( -name 'docker-compose*.yml' -o -name 'docker-compose*.yaml' \
+               -o -name 'compose.yml' -o -name 'compose.yaml' \) -print)
+          if [ ${#files[@]} -eq 0 ]; then echo "no compose files"; exit 0; fi
+          for f in "${files[@]}"; do echo "validating $f"; docker compose -f "$f" config -q; done
+
+  # --- workflow のセキュリティ lint（ghalint：permissions 最小化・SHA 固定等） ----
+  # ghalint は固定バージョンを checksum 検証してから実行（PR 側設定を信頼しない）。
+  # checksum は mise.lock の ghalint linux-x64 と一致させること。
+  gha-lint:
+    name: Lint workflows (ghalint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      GHALINT_VERSION: "1.5.6"
+      GHALINT_SHA256: "98ee0e3330de7286f470d1e89c03ff7ce70d7a5998ba0f15969c400447be579c"
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - name: Run ghalint (pinned + checksum-verified)
+        run: |
+          url="https://github.com/suzuki-shunsuke/ghalint/releases/download/v${GHALINT_VERSION}/ghalint_${GHALINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o ghalint.tar.gz "$url"
+          echo "${GHALINT_SHA256}  ghalint.tar.gz" | sha256sum -c -
+          tar -xzf ghalint.tar.gz ghalint
+          ./ghalint run
+          rm -f ghalint.tar.gz ghalint
+
+  # --- secret スキャン（gitleaks：固定版を checksum 検証して実行） ----------------
+  # checksum は mise.lock の gitleaks linux-x64 と一致させること。
+  gitleaks:
+    name: Scan for secrets (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - name: Run gitleaks (pinned + checksum-verified)
+        run: |
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o gitleaks.tar.gz "$url"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks dir . --redact --no-banner
+          rm -f gitleaks.tar.gz gitleaks

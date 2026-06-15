@@ -1,0 +1,32 @@
+# commit-check 設定 (TOML)
+#   - [commit] : commit message の規則。本リポでは prek（ローカル）でのみ適用する。
+#   - [branch] : ブランチ名の規則。ローカル(prek pre-push) と CI(commit-check-action) の両方で適用。
+# type 語彙は release-drafter.yml / pr-validation.yml と必ず揃えること（Single Source は README.md）。
+# 公式スキーマ: https://commit-check.github.io/commit-check/configuration.html
+
+[commit]
+conventional_commits = true
+# テンプレートとして緩めに: 文頭大文字強制・命令形強制はしない
+subject_capitalized = false
+subject_imperative = false
+subject_max_length = 72
+allow_commit_types = ["feat", "fix", "docs", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+allow_merge_commits = true
+allow_revert_commits = true
+allow_fixup_commits = true
+allow_wip_commits = false
+require_signed_off_by = false
+# bot のコミットは検証対象から除外
+ignore_authors = ["dependabot[bot]", "renovate[bot]"]
+
+[branch]
+conventional_branch = true
+# ブランチ語彙は Conventional Commits の type に統一（feat/<desc> 形式）
+allow_branch_types = ["feat", "fix", "docs", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+# 長命ブランチは type/desc 規則の例外として明示的に許可
+allow_branch_names = ["main"]
+# bot のブランチ（dependabot/* 等）は branch 名規則の対象外
+ignore_authors = ["dependabot[bot]", "renovate[bot]"]
+
+[push]
+allow_force_push = true

@@ -1,0 +1,19 @@
+# pnpm の設定（pnpm 11）。サプライチェーン対策を明示する。
+# 多くは pnpm 11 で既定 ON だが、テンプレートとして意図を明文化しておく。
+
+# 公開から一定時間が経つまで新規バージョンを解決しない（cooldown）。既定=1440分(1日)。
+# Renovate 側の minimumReleaseAge と同じ思想を、インストール時にも効かせる。
+minimumReleaseAge: 1440
+# 緊急のセキュリティ修正を待たず入れたい場合の除外（`pnpm audit --fix=update` が追記）。
+minimumReleaseAgeExclude: []
+
+# 非標準（exotic）なサブ依存をブロック。既定 true。
+blockExoticSubdeps: true
+
+# 依存のライフサイクルスクリプト（postinstall 等）は既定でブロックされる。
+# 実行を許可するパッケージのみ allowlist に明示する（現状は依存ゼロなので空）。
+allowBuilds: {}
+
+# スクリプト実行前に node_modules と lockfile の整合を検証し、ズレていれば失敗させる（fail-closed）。
+# install: 自動で pnpm install を走らせる / warn: 警告のみ / error: 失敗させる。
+verifyDepsBeforeRun: error

@@ -1,0 +1,78 @@
+# prek（pre-commit 互換のフックランナー）で commit-check をローカル実行する設定。
+#   - check-message : commit message を Conventional Commits で検証（commit-msg フック）
+#   - check-branch  : ブランチ名を type/desc 規則で検証（pre-push フック）
+# 詳細ルールは commit-check.toml を参照する。
+#
+# 導入:
+#   prek install --hook-type commit-msg --hook-type pre-push
+# （pre-commit を使う場合も同じ id・stages でそのまま動く）
+
+repos:
+  # Dockerfile linter（mise の hadolint バイナリを使用＝docker 不要）
+  - repo: https://github.com/hadolint/hadolint
+    rev: 57e1618d78fd469a92c1e584e8c9313024656623  # v2.14.0
+    hooks:
+      - id: hadolint
+
+  - repo: https://github.com/commit-check/commit-check
+    # rev も full commit SHA で固定（タグ改ざん耐性のため）。
+    # 更新は `pre-commit autoupdate --freeze`（prek も同じ設定で動作）。
+    # dependabot は pre-commit を未サポートなので自動更新対象外（Renovate なら可）。
+    rev: f02b8450cd051d69929fe4921b71722f82f0e28c  # v2.8.0
+    hooks:
+      - id: check-message
+        stages: [commit-msg]
+      - id: check-branch
+        stages: [pre-push]
+
+  # GitHub Actions の uses: を SHA に自動 pin する（pinact）。
+  # pinact 未インストールの環境では skip（CI の pin-actions ジョブが強制する）。
+  # pinact のインストール: https://github.com/suzuki-shunsuke/pinact
+  - repo: local
+    hooks:
+      - id: pinact
+        name: pin GitHub Actions to SHA (pinact)
+        entry: bash -c 'command -v pinact >/dev/null 2>&1 && exec pinact run "$@" || echo "[pinact] not installed; skipping (CI enforces)"' --
+        language: system
+        files: ^\.github/(workflows|actions)/.*\.ya?ml$
+        pass_filenames: true
+
+      # hook rev が full commit SHA で固定されているか検証（CI の pin-hooks と同一スクリプト）
+      - id: check-hook-rev-sha
+        name: check pre-commit hook revs are SHA-pinned
+        entry: bash scripts/check-hook-rev-sha.sh
+        language: system
+        files: ^\.pre-commit-config\.yaml$
+        pass_filenames: false
+
+      # Dockerfile の FROM が full digest で固定されているか検証（CI の docker ジョブと同一スクリプト）
+      - id: pin-docker
+        name: check Dockerfile base images are digest-pinned
+        entry: bash scripts/check-docker-digests.sh
+        language: system
+        files: (^|/)Dockerfile(\.[^/]+)?$|\.Dockerfile$
+        pass_filenames: false
+
+      # type 語彙が 4 箇所で一致しているか検証（CI の vocab-sync と同一スクリプト）
+      - id: check-vocab-sync
+        name: check type vocabulary is in sync
+        entry: bash scripts/check-vocab-sync.sh
+        language: system
+        files: ^(commit-check\.toml|\.github/release-drafter\.yml|\.github/workflows/pr-validation\.yml)$
+        pass_filenames: false
+
+      # workflow のセキュリティ lint（mise の ghalint を使用。未インストール時は skip＝CI が強制）
+      - id: ghalint
+        name: lint workflows (ghalint)
+        entry: bash -c 'command -v ghalint >/dev/null 2>&1 && exec ghalint run || echo "[ghalint] not installed; skipping (CI enforces)"'
+        language: system
+        files: ^\.github/(workflows|actions)/.*\.ya?ml$
+        pass_filenames: false
+
+      # commit 前に staged 差分の secret を検出（mise の gitleaks を使用。未インストール時は skip＝CI が強制）
+      - id: gitleaks
+        name: detect hardcoded secrets (gitleaks)
+        entry: bash -c 'command -v gitleaks >/dev/null 2>&1 && exec gitleaks git --pre-commit --redact --staged --verbose || echo "[gitleaks] not installed; skipping (CI enforces)"'
+        language: system
+        pass_filenames: false
+        always_run: true

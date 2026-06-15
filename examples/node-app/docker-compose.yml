@@ -1,0 +1,16 @@
+# サンプル: 上の Dockerfile をビルドして起動する最小構成。
+services:
+  app:
+    build:
+      context: .
+    image: sample-node-app:local
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped

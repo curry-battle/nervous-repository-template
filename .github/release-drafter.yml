@@ -1,0 +1,99 @@
+# Release Drafter config
+# 分類キーは「ラベル」。ラベルは autolabeler が PR title / body から自動付与する。
+# Squash マージ前提なので PR title がそのまま main のコミット & リリースノートの各行になる。
+#
+# 語彙はこの 1 ファイルだけでなく commit-check.toml / pr-validation.yml とも揃える必要がある。
+# (type 一覧の Single Source は README.md の表)
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+version-template: '$MAJOR.$MINOR.$PATCH'
+
+# --- リリースノートの章構成（集約型） -----------------------------------------
+# exclusive: true = 先勝ち。上から評価し、最初にマッチした章にだけ PR を載せる。
+# これにより stale ラベルで複数 type ラベルが付いても表示は二重化しない。
+# (semver 判定は version-resolver 側で別途行われる点に注意 — README の運用ルール参照)
+categories:
+  # 注: pin している release-drafter v6 は categories[].exclusive 非対応。
+  # そのため二重分類は exclusive ではなく autolabeler 側で type ラベルを排他化して防ぐ。
+  - title: '💥 Breaking Changes'
+    labels: ['breaking']
+  - title: '🚀 Features'
+    labels: ['feature']
+  - title: '🐛 Bug Fixes'
+    labels: ['fix']
+  - title: '⚡ Performance'
+    labels: ['perf']
+  - title: '♻️ Refactoring'
+    labels: ['refactor']
+  - title: '🧰 Maintenance'
+    labels: ['docs', 'test', 'build', 'ci', 'chore', 'revert']
+
+# このラベルが付いた PR はリリースノートから除外する（任意運用）
+exclude-labels:
+  - 'skip-changelog'
+
+# --- semver 自動判定 ----------------------------------------------------------
+# default: patch = マージされた PR は最低でも patch を上げる。
+version-resolver:
+  major:
+    labels: ['breaking']
+  minor:
+    labels: ['feature']
+  patch:
+    labels: ['fix', 'perf', 'refactor', 'docs', 'test', 'build', 'ci', 'chore', 'revert']
+  default: patch
+
+# --- PR title / body からラベルを自動付与 -------------------------------------
+# 注意1: autolabeler は「加算」のみで stale ラベルを外さない。
+#        type を後から書き換えた場合は手動で古いラベルを外すこと（README 参照）。
+# 注意2: type 規則は "!" を含めない（`:` で終端）。これにより `feat!:`/`fix!:` は
+#        breaking ルールのみに一致し、type ラベルが排他になる（exclusive 非対応の代替）。
+#        ただし `feat:` に本文 BREAKING CHANGE フッターを併用した稀なケースは
+#        feature+breaking の二重ラベルになり得る（semver は major で正しい / 表示のみ重複）。
+autolabeler:
+  - label: 'breaking'
+    title:
+      - '/^\w+(\(.+\))?!:\s/'
+    body:
+      - '/BREAKING[ -]CHANGE:/'
+  - label: 'feature'
+    title:
+      - '/^feat(\(.+\))?:\s/i'
+  - label: 'fix'
+    title:
+      - '/^fix(\(.+\))?:\s/i'
+  - label: 'perf'
+    title:
+      - '/^perf(\(.+\))?:\s/i'
+  - label: 'refactor'
+    title:
+      - '/^refactor(\(.+\))?:\s/i'
+  - label: 'docs'
+    title:
+      - '/^docs(\(.+\))?:\s/i'
+  - label: 'test'
+    title:
+      - '/^test(\(.+\))?:\s/i'
+  - label: 'build'
+    title:
+      - '/^build(\(.+\))?:\s/i'
+  - label: 'ci'
+    title:
+      - '/^ci(\(.+\))?:\s/i'
+  - label: 'chore'
+    title:
+      - '/^chore(\(.+\))?:\s/i'
+  - label: 'revert'
+    title:
+      - '/^revert(\(.+\))?:\s/i'
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPO/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+change-title-escapes: '\<*_&'

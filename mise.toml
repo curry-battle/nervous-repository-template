@@ -1,0 +1,25 @@
+# 開発に必要な CLI を mise で宣言的に固定管理する。
+#   mise install   # mise.toml のツールを一括インストール
+#   mise exec -- prek install --hook-type commit-msg --hook-type pre-push
+#
+# 短縮名はそれぞれ aqua backend に解決される:
+#   prek   -> aqua:j178/prek
+#   pinact -> aqua:suzuki-shunsuke/pinact
+
+[tools]
+prek = "0.4.4"      # pre-commit 互換のフックランナー
+pinact = "4.1.0"    # GitHub Actions の uses: を full commit SHA に pin
+hadolint = "2.14.0" # Dockerfile linter（ローカル hook で使用）
+ghalint = "1.5.6"   # GitHub Actions セキュリティ linter（permissions 最小化等）
+gitleaks = "8.30.1" # ハードコードされた secret の検出
+
+[settings]
+# 開発ツールを checksum 固定する。bootstrap として最初に一度
+#   mise lock --platform linux-x64,macos-arm64   # CI(linux) と開発機の両方を含める
+# を実行し、生成された mise.lock をコミットすること。
+lockfile = true
+# locked=true: lockfile に解決済み URL/checksum が無い tool は mise install を失敗させる（＝未ロックを強制的に弾く）
+# ※ mise.lock をコミットする前に有効だと mise install が落ちるので、bootstrap 後に運用する
+locked = true
+# 必要なら provenance も毎回検証する（backend が attestation を持つ場合）。tool により未対応のことがあるので任意:
+# locked_verify_provenance = true
