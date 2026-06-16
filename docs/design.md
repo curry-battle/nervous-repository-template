@@ -32,10 +32,10 @@
       │                │                │
    commit-check    commit-check    semantic-pr     release-drafter:
    (branch)        (message)       required        autolabeler が
-   prek + CI       prek のみ        check           PR title → label → 分類 / semver
+   prek のみ        prek のみ        check           PR title → label → 分類 / semver
 ```
 
-- **commit-check**：branch はローカル + CI、commit message はローカル(prek)のみ。
+- **commit-check**：branch / commit message ともにローカル(prek)のみ。CI では検証しない（branch 名は squash で main に残らずリリースノートにも影響しないため、CI で必須化するほどの保護対象ではない）。
 - **release-drafter**：分類キーは「ラベル」。`autolabeler` が PR title から `feat:` → `feature` ラベルを付与し、categories と version-resolver がラベルで分類・semver 判定する。
 
 ## リリースの流れ

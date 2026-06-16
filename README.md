@@ -13,7 +13,7 @@
 
 | 目的 | ツール |
 |---|---|
-| commit / branch name を Conventional で強制 | [commit-check](https://github.com/commit-check/commit-check)（prek + CI） |
+| commit / branch name を Conventional で強制 | [commit-check](https://github.com/commit-check/commit-check)（prek のみ。過剰なので CI では検証しない） |
 | PR title を Conventional で強制 | [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request)（required check） |
 
 ### 2. リリース自動化
@@ -56,7 +56,7 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 
 1. Squash merge のみ有効化（+ "Default to PR title for squash commits"）
 2. `main` の Branch protection で次を required にする:
-   `Validate PR title` / `Validate branch name` / `Verify actions are SHA-pinned` /
+   `Validate PR title` / `Verify actions are SHA-pinned` /
    `Verify hooks are SHA-pinned` / `Verify mise tools are locked` / `Verify Docker (lint / digest-pinned / compose)` /
    `Lint workflows (ghalint)` / `Scan for secrets (gitleaks)`
 3. [Renovate App](https://github.com/apps/renovate) を有効化

@@ -47,7 +47,7 @@
 
 | ID | モジュール | 主な参照ファイル | 依存 |
 |---|---|---|---|
-| A | commit / branch の Conventional 強制 | `commit-check.toml`、`.pre-commit-config.yaml`、`mise.toml`、`.github/workflows/pr-validation.yml`(branch-name) | — |
+| A | commit / branch の Conventional 強制 | `commit-check.toml`、`.pre-commit-config.yaml`、`mise.toml`（いずれも prek のみ。CI では検証しない） | — |
 | B | PR title の Conventional 強制 | `.github/workflows/pr-validation.yml`(pr-title) | type語彙 |
 | C | リリース自動化 | `.github/release-drafter.yml`、`.github/workflows/release-drafter.yml`、`create-labels.sh` | A/B(語彙) |
 | D | GitHub Actions の SHA 固定 | 各 workflow の `uses:`、`pin-actions`ジョブ、`.pre-commit-config.yaml`(pinact)、`mise.toml`(pinact) | — |

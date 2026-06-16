@@ -1,9 +1,13 @@
 name: PR Validation
 
-# PR の入口で 2 つを検証する:
-#   1. PR title が Conventional Commits 形式か (squash 後の main コミットになるため必須)
-#   2. ブランチ名が type/desc 規則か
+# PR の入口で PR title が Conventional Commits 形式かを検証する
+# (squash 後の main コミット & リリースノートの1行になるため必須)。
 # commit message 自体はローカル prek のみで縛る方針なので CI では検証しない。
+#
+# ブランチ名の Conventional Branch チェックは廃止した。
+# 理由: ブランチ名は squash マージで main の履歴に残らず、リリースノートにも影響しない。
+# 命名規則はあくまで運用上の目安であり、CI で必須チェックして PR をブロックするほどの
+# 保護対象ではないと判断したため。命名はローカル運用/レビューでの確認に委ねる。
 
 on:
   pull_request:
@@ -42,30 +46,6 @@ jobs:
           # subject の整形ルールは課さない（最小: type 形式のみ）
           # 破壊的変更の "!" を許可
           # （subjectPattern を設定しないことで subject 文面は自由）
-
-  # --- ブランチ名を Conventional Branch でチェック -----------------------------
-  branch-name:
-    name: Validate branch name
-    # dependabot の branch (dependabot/*) は規則対象外。skip された required check は pass 扱い。
-    if: ${{ github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: write  # pr-comments を出す場合に必要
-    steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false  # 後続ステップにトークンを残さない
-      - uses: commit-check/commit-check-action@c7245f6139b55db23f92266c2f0ff8429c64de80 # v2.8.0
-        with:
-          message: false       # commit message はローカル prek のみ
-          branch: true         # ブランチ名のみ CI で検証
-          author-name: false
-          author-email: false
-          job-summary: true
-          pr-comments: ${{ github.event_name == 'pull_request' }}
 
   # --- GitHub Actions が full commit SHA で固定されているか検証 ----------------
   # fix: "false" = 修正せず検証のみ。未固定の uses: があれば CI を失敗させる。
