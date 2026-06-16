@@ -3,7 +3,7 @@
 # Squash マージ前提なので PR title がそのまま main のコミット & リリースノートの各行になる。
 #
 # 語彙はこの 1 ファイルだけでなく commit-check.toml / pr-validation.yml とも揃える必要がある。
-# (type 一覧の Single Source は README.md の表)
+# (type 一覧の Single Source は docs/design.md の表)
 
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
