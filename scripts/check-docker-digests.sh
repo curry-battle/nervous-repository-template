@@ -2,6 +2,9 @@
 # 全 Dockerfile の FROM が full digest（@sha256:...）で固定されているか検証する。
 # ステージ参照（FROM <stage>）と scratch は除外。FROM --platform=... のフラグも考慮。
 # CI（docker ジョブ）とローカル prek hook の両方から呼ばれる。
+#
+# 代替: azu/dockerfile-pin（https://github.com/azu/dockerfile-pin）等の OSS があるが、
+# 依存を追加したくない（追加すればそれ自体が pin 対象になる）ため自前で実装している。
 set -euo pipefail
 
 mapfile -t files < <(find . -path ./node_modules -prune -o -type f \

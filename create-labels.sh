@@ -4,6 +4,9 @@ set -euo pipefail
 # ラベル名は .github/release-drafter.yml と一致させること
 # （特に feat: に対応するラベルは "feature"。"feat" ではない）。
 #
+# 代替: crazy-max/ghaction-github-labeler（https://github.com/crazy-max/ghaction-github-labeler）
+# 等の OSS があるが、依存を追加したくない（gh のみで完結させたい）ため自前で実装している。
+#
 # 必要: gh CLI（gh auth login 済み）
 # 使い方:
 #   bash create-labels.sh                 # カレントディレクトリのリポジトリ
