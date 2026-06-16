@@ -1,4 +1,6 @@
 <!--
+このテンプレートはあくまでサンプルです。プロジェクトに合わせて自由に編集・削除してください。
+
 PR title は Conventional Commits に従ってください（squash マージで main のコミット & リリースノートの1行になります。CI で必須チェックされます）。
 形式: <type>(<scope 任意>): <概要>
 type: feat / fix / docs / refactor / perf / test / build / ci / chore / revert
