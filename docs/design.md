@@ -27,15 +27,15 @@
 ## 仕組み
 
 ```
-   branch 名        各 commit        PR title        (squash で main の commit)
-   feat/xxx         feat: ...        feat: ...   ──► PR title がそのまま履歴に
+   branch           commit msg       PR title         (squash で main の commit)
+   feat/xxx         feat: ...        feat: ...  ──► PR title がそのまま履歴に
       │                │                │
-   commit-check    commit-check    semantic-pr     release-drafter:
-   (branch)        (message)       required        autolabeler が
-   prek のみ        prek のみ        check           PR title → label → 分類 / semver
+   commit-check     commit-check     semantic-pr     release-drafter:
+   pre-push hook    commit-msg hook  required         autolabeler が
+   (prek, local)    (prek, local)    check            PR title → label → 分類 / semver
 ```
 
-- **commit-check**：branch / commit message ともにローカル(prek)のみ。CI では検証しない（branch 名は squash で main に残らずリリースノートにも影響しないため、CI で必須化するほどの保護対象ではない）。
+- **commit-check**：branch 名は pre-push hook、commit message は commit-msg hook で検証（ともに prek、ローカルのみ）。CI では検証しない（branch 名は squash で main に残らずリリースノートにも影響しないため、CI で必須化するほどの保護対象ではない）。
 - **release-drafter**：分類キーは「ラベル」。`autolabeler` が PR title から `feat:` → `feature` ラベルを付与し、categories と version-resolver がラベルで分類し semver を判定する。
 
 ## リリースの流れ
@@ -57,8 +57,8 @@
 ### CI ワークフローのハードニング
 
 - **CI workflow**：checkout は `persist-credentials: false` ／ `contents: read` 起点、secret なし、`pull_request_target` 不使用 ／ 各ジョブに `timeout-minutes`。
-- **workflow のセキュリティ lint（ghalint）**：`gha-lint` ジョブ（固定版を checksum 検証して実行）＋ prek hook。permissions 最小化、`timeout-minutes` 必須、SHA 固定などのポリシーを強制（pinact と同じ作者で思想一致。pinact=pin / ghalint=lint）。
-- **secret スキャン（gitleaks）**：`gitleaks` ジョブ（固定版を checksum 検証 → `gitleaks dir .` で作業ツリー全体）＋ prek hook（commit 前に staged 差分を `gitleaks git --staged`）。ハードコードされた secret をマージ前と commit 前に検出。
+- **workflow のセキュリティ lint（ghalint）**：`gha-lint` ジョブ（固定版を checksum 検証して実行）＋ pre-commit hook。permissions 最小化、`timeout-minutes` 必須、SHA 固定などのポリシーを強制（pinact と同じ作者で思想一致。pinact=pin / ghalint=lint）。
+- **secret スキャン（gitleaks）**：`gitleaks` ジョブ（固定版を checksum 検証 → `gitleaks dir .` で作業ツリー全体）＋ pre-commit hook（commit 前に staged 差分を `gitleaks git --staged`）。ハードコードされた secret をマージ前と commit 前に検出。
 
 ### 外部依存の SHA と checksum 固定（4 経路）
 

@@ -4,7 +4,7 @@
 # 詳細ルールは commit-check.toml を参照する。
 #
 # 導入:
-#   prek install --hook-type commit-msg --hook-type pre-push
+#   prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 # （pre-commit を使う場合も同じ id・stages でそのまま動く）
 
 repos:
@@ -16,7 +16,7 @@ repos:
 
   - repo: https://github.com/commit-check/commit-check
     # rev も full commit SHA で固定（タグ改ざん耐性のため）。
-    # 更新は `pre-commit autoupdate --freeze`（prek も同じ設定で動作）。
+    # 更新は `prek auto-update --freeze`（pre-commit を使う場合は `autoupdate --freeze`。設定ファイルは共通）。
     # dependabot は pre-commit を未サポートなので自動更新対象外（Renovate なら可）。
     rev: f02b8450cd051d69929fe4921b71722f82f0e28c  # v2.8.0
     hooks:

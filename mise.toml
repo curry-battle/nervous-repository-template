@@ -1,6 +1,6 @@
 # 開発に必要な CLI を mise で宣言的に固定管理する。
 #   mise install   # mise.toml のツールを一括インストール
-#   mise exec -- prek install --hook-type commit-msg --hook-type pre-push
+#   mise exec -- prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 #
 # 短縮名はそれぞれ aqua backend に解決される:
 #   prek   -> aqua:j178/prek

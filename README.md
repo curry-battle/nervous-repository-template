@@ -1,50 +1,57 @@
-# repository-template
+# nervous-repository-template
 
-汎用的に利用されることを目指したリポジトリテンプレート
+神経質気味な人のためのリポジトリテンプレート
 
+含まれるもの：
 - Conventional Commits を軸に commit / branch / PR / リリースを規約で統一
-- GitHub Actions のサプライチェーンを固めたリポジトリテンプレート
-- 外部依存（GitHub Actions / pre-commit hook / mise ツール）の **SHA と checksum の固定を CI で強制**
-- Renovateによるライブラリ更新を包含
+- 外部依存 (GitHub Actions / pre-commit hook / mise tools) の SHA と checksum の固定を CI で強制
+- Renovateによるライブラリ更新
 
-## 何が入っているか
+## 包含されるもの
 
-### 1. Conventional 規約の強制
+### 開発フロー
 
-| 目的 | ツール |
-|---|---|
-| commit / branch name を Conventional で強制 | [commit-check](https://github.com/commit-check/commit-check)（prek のみ。過剰なので CI では検証しない） |
-| PR title を Conventional で強制 | [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request)（required check） |
+#### Conventional 規約の強制
 
-### 2. リリース自動化
+| 目的 | ツール | チェックするタイミング |
+|---|---|---|
+| commit / branch name を Conventional で強制 | [commit-check](https://github.com/commit-check/commit-check) | commit-msg hook<br />pre-push hook |
+| PR title を Conventional で強制 | [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) | PR（CI） |
 
-| 目的 | ツール |
-|---|---|
-| リリースノート / semver を自動生成 | [release-drafter](https://github.com/release-drafter/release-drafter)（分類を type に対応） |
+#### リリース自動化
 
-### 3. サプライチェーン・セキュリティ
+| 目的 | ツール | チェックするタイミング |
+|---|---|---|
+| リリースノート / semver を自動生成 | [release-drafter](https://github.com/release-drafter/release-drafter) | main への push（CI） |
 
-| 目的 | ツール |
-|---|---|
-| Actions を SHA 固定 | [pinact](https://github.com/suzuki-shunsuke/pinact) |
-| workflow のセキュリティ lint | [ghalint](https://github.com/suzuki-shunsuke/ghalint)（permissions 最小化・timeout 必須等） |
-| 依存更新（Actions / hook / mise / Docker） | [Renovate](https://docs.renovatebot.com/)（cooldown + digest 固定） |
-| secret の検出 | [gitleaks](https://github.com/gitleaks/gitleaks)（prek で commit 前 + CI で全体スキャン） |
+Squash マージを前提にしているため、PR title はそのまま `main` のコミットメッセージになり、
+release-drafter がそれをリリースノートの 1 行として拾う。
+この「PR title → `main` コミット → リリースノート」を一本に通すため、
+commit / branch / PR title / リリース分類のすべてを
+Conventional Commits の type（`feat` / `fix` …）で統一している。
 
-### 4. Docker
+### セキュリティ・環境
 
-| 目的 | ツール |
-|---|---|
-| Dockerfile lint + base image の digest 固定 | [hadolint](https://github.com/hadolint/hadolint) + 自前チェック（`examples/node-app/` がサンプル） |
+#### サプライチェーン・セキュリティ
 
-### 5. 開発環境
+| 目的 | ツール | チェックするタイミング |
+|---|---|---|
+| Actions を SHA 固定 | [pinact](https://github.com/suzuki-shunsuke/pinact) | pre-commit hook<br />PR（CI） |
+| workflow のセキュリティ lint | [ghalint](https://github.com/suzuki-shunsuke/ghalint) | pre-commit hook<br />PR（CI） |
+| 依存更新（Actions / hook / mise / Docker） | [Renovate](https://docs.renovatebot.com/) | 定期（Renovate スケジュール） |
+| secret の検出 | [gitleaks](https://github.com/gitleaks/gitleaks) | pre-commit hook<br />PR（CI） |
 
-| 目的 | ツール |
-|---|---|
-| 開発 CLI のバージョン固定 | [mise](https://mise.jdx.dev/)（prek / pinact / hadolint / ghalint / gitleaks） |
+#### Docker
 
-すべて Conventional Commits の type（`feat` / `fix` …）1 つに揃え、Squash マージ前提で
-PR title = `main` コミット = リリースノートの 1 行、になるよう設計している。
+| 目的 | ツール | チェックするタイミング |
+|---|---|---|
+| Dockerfile lint + base image の digest 固定 | [hadolint](https://github.com/hadolint/hadolint) + 自前チェック（`examples/node-app/` がサンプル） | pre-commit hook<br />PR（CI） |
+
+#### 開発環境
+
+| 目的 | ツール | チェックするタイミング |
+|---|---|---|
+| 開発 CLI のバージョン固定 | [mise](https://mise.jdx.dev/)（prek / pinact / hadolint / ghalint / gitleaks） | mise install 時<br />PR（CI で lock 検証） |
 
 ## クイックスタート
 
@@ -62,7 +69,16 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 3. [Renovate App](https://github.com/apps/renovate) を有効化
 4. `bash create-labels.sh` でラベルを作成
 
+## このリポジトリの要素を自分のリポジトリに取り入れる
+
+このテンプレートは全部入りだが、一部だけ（例: リリース自動化、サプライチェーン対策）を既存リポジトリへ移植することもできる。
+
+移植は **AI エージェント（Claude / Codex 等）に任せる**のが楽。[docs/adoption-guide.md](./docs/adoption-guide.md) が LLM 向けのプレイブックで、エージェントに次のように頼むと、必要なモジュールと設定値を AskUser で確認しながら移植してくれる。
+
+> このリポジトリの docs/adoption-guide.md に従って、リリース自動化を私のリポジトリに取り入れて
+
+手で移植する場合も、モジュール一覧（区分 / 依存 / 参照ファイル）と落とし穴チェックリストの索引として使える。
+
 ## ドキュメント
 
 - [docs/design.md](./docs/design.md)：思想、仕組み、type 語彙、リリースの流れ、サプライチェーン対策、運用ルール
-- [docs/adoption-guide.md](./docs/adoption-guide.md)：このリポの一部/全部を他リポへ取り込むときの **LLM 向けプレイブック**（AskUser でモジュール選択 → 設定内容を決定 → 適用と検証）
