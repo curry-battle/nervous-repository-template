@@ -4,7 +4,7 @@
 
 - Conventional Commits を軸に commit / branch / PR / リリースを規約で統一
 - GitHub Actions のサプライチェーンを固めたリポジトリテンプレート
-- 外部依存（GitHub Actions / pre-commit hook / mise ツール）の **SHA・checksum 固定を CI で強制**
+- 外部依存（GitHub Actions / pre-commit hook / mise ツール）の **SHA と checksum の固定を CI で強制**
 - Renovateによるライブラリ更新を包含
 
 ## 何が入っているか
@@ -64,5 +64,5 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 
 ## ドキュメント
 
-- [docs/design.md](./docs/design.md) — 思想・仕組み・type 語彙・リリースの流れ・サプライチェーン対策・運用ルール
-- [docs/adoption-guide.md](./docs/adoption-guide.md) — このリポの一部/全部を他リポへ取り込むときの **LLM 向けプレイブック**（AskUser でモジュール選択 → 設定内容を決定 → 適用・検証）
+- [docs/design.md](./docs/design.md)：思想、仕組み、type 語彙、リリースの流れ、サプライチェーン対策、運用ルール
+- [docs/adoption-guide.md](./docs/adoption-guide.md)：このリポの一部/全部を他リポへ取り込むときの **LLM 向けプレイブック**（AskUser でモジュール選択 → 設定内容を決定 → 適用と検証）

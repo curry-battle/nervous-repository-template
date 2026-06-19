@@ -5,7 +5,7 @@
 **勝手にコピーせず、この手順で AskUser しながら**対象リポジトリへ移植してください。
 
 - 参照は **ファイル単位**で示す（行番号は時間で陳腐化するので書かない）。実体は各ファイルを読むこと。
-- 設定の中身（type 語彙・cooldown 日数など）は**必ず AskUser で決めてから**書く。デフォルトを黙って流用しない。
+- 設定の中身（type 語彙や cooldown 日数など）は**必ず AskUser で決めてから**書く。デフォルトを黙って流用しない。
 - lockfile（`mise.lock` / `pnpm-lock.yaml`）や `mise.lock` の checksum、action の SHA は**コピーせず対象環境で生成/解決し直す**。
 - 設計の背景は [design.md](./design.md) を参照。
 
@@ -123,7 +123,7 @@
 
 ### I. workflow セキュリティ lint（ghalint）
 - 参照: `gha-lint`ジョブ、`.pre-commit-config.yaml`、`mise.toml`
-- AskUser: 特になし。ghalint のポリシー（`permissions` 最小化・`timeout-minutes` 必須・SHA 固定）に合わせて**既存 workflow の修正が必要**になる点を伝える。
+- AskUser: 特になし。ghalint のポリシー（`permissions` 最小化、`timeout-minutes` 必須、SHA 固定）に合わせて**既存 workflow の修正が必要**になる点を伝える。
 - 注意: CI は **固定版を checksum 検証して実行**（mise-action 等で PR 設定を信頼しない）。
 
 ### J. secret スキャン（gitleaks）
@@ -156,7 +156,7 @@
 - `actionlint .github/workflows/*.yml`（ワークフロー構文）
 - `ghalint run`（I を入れた場合。既存 workflow がポリシー違反なら修正）
 - `gitleaks dir .`（J を入れた場合。誤検知確認）
-- `bash scripts/check-*.sh`（導入した自己チェックの正常系・負例）
+- `bash scripts/check-*.sh`（導入した自己チェックの正常系と負例）
 - `mise install`（F。`locked=true` 下で通ること）
 - Docker を入れたら `docker build` + 起動 + healthcheck、`docker compose config -q`
 - Renovate を入れたら `renovate-config-validator`
@@ -168,7 +168,7 @@
 - [ ] PR テンプレに `BREAKING CHANGE:` の文字列を残していない（M×C）
 - [ ] release-drafter のバージョンに `categories[].exclusive` が**対応しているか**。v6 系なら autolabeler 排他化で代替
 - [ ] `mise.lock` / `pnpm-lock.yaml` を**コピーせず生成**した
-- [ ] action の SHA・base image digest を**対象環境で解決**した
+- [ ] action の SHA と base image digest を**対象環境で解決**した
 - [ ] `prek install` に **`--hook-type pre-commit`** を含めた（ローカルフックは pre-commit 既定）
 - [ ] mise-locked / pin 系の CI 検証は **静的**（PR で `mise install` 等の実行をしない）
 - [ ] type 語彙が A/B/C/L の参照箇所で一致（L の自己テストで担保）

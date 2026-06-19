@@ -32,18 +32,18 @@ docker compose up --build
 
 pnpm 11 の既定を踏まえつつ、意図を明示しています。
 
-- **`minimumReleaseAge: 1440`** — 公開から 1 日経たない新規バージョンは解決しない（cooldown）。Renovate 側の cooldown と同じ思想をインストール時にも効かせる。緊急時は `minimumReleaseAgeExclude` で個別除外。
-- **`blockExoticSubdeps: true`** — 非標準なサブ依存をブロック。
-- **`allowBuilds: {}`** — 依存のライフサイクルスクリプト（postinstall 等）は既定でブロック。実行を許可するパッケージのみ allowlist に明示する。
-- **`verifyDepsBeforeRun: error`** — スクリプト実行前に `node_modules` と lockfile の整合を検証し、ズレていれば**失敗させる**（fail-closed。`install` だと自動で入れ直してしまう）。
+- **`minimumReleaseAge: 1440`**：公開から 1 日経たない新規バージョンは解決しない（cooldown）。Renovate 側の cooldown と同じ思想をインストール時にも効かせる。緊急時は `minimumReleaseAgeExclude` で個別除外。
+- **`blockExoticSubdeps: true`**：非標準なサブ依存をブロック。
+- **`allowBuilds: {}`**：依存のライフサイクルスクリプト（postinstall 等）は既定でブロック。実行を許可するパッケージのみ allowlist に明示する。
+- **`verifyDepsBeforeRun: error`**：スクリプト実行前に `node_modules` と lockfile の整合を検証し、ズレていれば**失敗させる**（fail-closed。`install` だと自動で入れ直してしまう）。
 
 ## このサンプルに効くチェック
 
 リポジトリ共通の CI（`docker` ジョブ）とローカル prek hook で検証されます。
 
-- `hadolint` — Dockerfile lint
-- `pin-docker` — 全 `FROM` が `@sha256:` で digest 固定か
-- `docker compose config` — compose 構文
-- Renovate（`docker:pinDigests` / npm manager）— base image digest と `pnpm-lock.yaml` / `packageManager` を更新
+- `hadolint`：Dockerfile lint
+- `pin-docker`：全 `FROM` が `@sha256:` で digest 固定か
+- `docker compose config`：compose 構文
+- Renovate（`docker:pinDigests` / npm manager）：base image digest と `pnpm-lock.yaml` / `packageManager` を更新
 
 詳細は [../../docs/design.md](../../docs/design.md) を参照。
