@@ -12,6 +12,10 @@
     "docker:pinDigests",
   ],
 
+  // Mend App を "All repositories" で入れると default が silent(=PR/Issue を作らない)になる。
+  // このリポは Renovate を能動運用する前提なので full に固定し、clone 先でも PR が出るようにする。
+  mode: "full",
+
   // 可視化・棚卸し用ダッシュボード（Issue として一覧化）
   dependencyDashboard: true,
   configMigration: true,
