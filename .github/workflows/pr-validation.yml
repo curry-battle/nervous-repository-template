@@ -186,7 +186,8 @@ jobs:
           url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz"
           curl -fsSL -o cargo-deny.tar.gz "$url"
           echo "${CARGO_DENY_SHA256}  cargo-deny.tar.gz" | sha256sum -c -
-          tar -xzf cargo-deny.tar.gz --strip-components=1
+          # バイナリだけ取り出す（LICENSE/README を作業ツリーに残さない。ghalint/gitleaks と同方針）
+          tar -xzf cargo-deny.tar.gz --strip-components=1 --wildcards '*/cargo-deny'
           # --locked: コミット済み Cargo.lock がそのまま監査対象であることを保証する
           # --config: 明示して deny.toml の所在を固定する
           ./cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml

@@ -33,7 +33,7 @@ docker compose up --build
 
 pnpm 11 の既定を踏まえつつ、意図を明示しています。
 
-- **`minimumReleaseAge: 1440`**：公開から 1 日経たない新規バージョンは解決しない（cooldown）。Renovate 側の cooldown と同じ思想をインストール時にも効かせる。緊急時は `minimumReleaseAgeExclude` で個別除外。
+- **`minimumReleaseAge: 10080`**（分＝7日）：公開から 7 日経たない新規バージョンは解決しない（cooldown）。`renovate.json5` の `minimumReleaseAge: 7 days` と揃え、同じ思想をインストール時にも効かせる。緊急時は `minimumReleaseAgeExclude` で個別除外。
 - **`blockExoticSubdeps: true`**：非標準なサブ依存をブロック。
 - **`allowBuilds: {}`**：依存のライフサイクルスクリプト（postinstall 等）は既定でブロック。実行を許可するパッケージのみ allowlist に明示する。
 - **`verifyDepsBeforeRun: error`**：スクリプト実行前に `node_modules` と lockfile の整合を検証し、ズレていれば**失敗させる**（fail-closed。`install` だと自動で入れ直してしまう）。

@@ -171,7 +171,7 @@
 - AskUser:
   - **サンプルごと入れる / チェックだけ入れる**
   - パッケージマネージャ・言語（pnpm/TS / cargo/Rust 等）
-- 注意: hadolint の lint と digest 検証は対象リポの Dockerfile 構成に合わせてパスを調整する。`docker-rust` サンプルは cargo-deny（`deny.toml`）/ trivy / pnpm audit の監査ジョブと併せて使う想定（依存をビルド/実行しない静的監査）。
+- 注意: hadolint の lint と digest 検証は対象リポの Dockerfile 構成に合わせてパスを調整する。監査ジョブ（M）との対応は言語別: `docker-node` は pnpm audit、`docker-rust` は cargo-deny（`deny.toml`）。trivy（fs スキャン）は言語非依存で両方に効く。いずれも依存をビルド/実行しない静的監査。
 
 ### M. 依存監査（cargo-deny / trivy / pnpm audit）
 - 参照: `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`ジョブ、`.pre-commit-config.yaml`(cargo-deny / trivy hook)、`mise.toml`(cargo-deny)、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml`
