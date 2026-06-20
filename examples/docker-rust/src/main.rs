@@ -121,4 +121,31 @@ mod tests {
         assert!(resp.ends_with("Hello from the sample app\n"));
         assert!(!resp.contains("application/json"));
     }
+
+    // Docker の HEALTHCHECK が使う run_healthcheck の統合テスト。
+    // 実際に listener を立てて 1 接続だけ handle し、疎通で 0 が返ることを確認する。
+    #[test]
+    fn healthcheck_returns_0_against_live_server() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind ephemeral");
+        let port = listener.local_addr().unwrap().port();
+        // 1 接続だけ処理するサーバを別スレッドで立てる（serve は無限ループなので handle を直接使う）
+        std::thread::spawn(move || {
+            if let Ok((stream, _)) = listener.accept() {
+                handle(stream);
+            }
+        });
+        assert_eq!(run_healthcheck(port), 0);
+    }
+
+    // 誰も listen していないポートでは接続失敗で 1 を返す。
+    #[test]
+    fn healthcheck_returns_1_when_no_server() {
+        // OS 割当のポートを取得し即解放する（誰も listen していない状態を作る）
+        let port = TcpListener::bind(("127.0.0.1", 0))
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        assert_eq!(run_healthcheck(port), 1);
+    }
 }
