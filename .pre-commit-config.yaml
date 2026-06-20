@@ -76,3 +76,19 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # Rust 依存を cargo-deny で監査（mise の cargo-deny を使用。未インストール時は skip＝CI が強制）
+      - id: cargo-deny
+        name: audit Rust deps (cargo-deny)
+        entry: bash -c 'command -v cargo-deny >/dev/null 2>&1 && exec cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml || echo "[cargo-deny] not installed; skipping (CI enforces)"'
+        language: system
+        files: (^|/)(Cargo\.toml|Cargo\.lock|deny\.toml)$
+        pass_filenames: false
+
+      # ファイルシステムの脆弱性 / 誤設定を trivy でスキャン（trivy は mise 管理外。未インストール時は skip＝CI が強制）
+      - id: trivy
+        name: scan filesystem (trivy)
+        entry: bash -c 'command -v trivy >/dev/null 2>&1 && exec trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --skip-dirs node_modules,target,.git --exit-code 1 --no-progress . || echo "[trivy] not installed; skipping (CI enforces)"'
+        language: system
+        pass_filenames: false
+        always_run: true

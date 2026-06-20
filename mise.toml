@@ -3,15 +3,25 @@
 #   mise exec -- prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 #
 # 短縮名はそれぞれ aqua backend に解決される:
-#   prek   -> aqua:j178/prek
-#   pinact -> aqua:suzuki-shunsuke/pinact
+#   prek      -> aqua:j178/prek
+#   pinact    -> aqua:suzuki-shunsuke/pinact
+#   cargo-deny -> aqua:EmbarkStudios/cargo-deny
+# trivy は mise 管理外（cargo-deny と違い意図的に外す）。理由:
+#   - aqua/ubi backend は mise.lock に checksum を記録しない。github backend は記録できるが、
+#     mise の asset_pattern は {version} しか展開せず（{os}/{arch} 不可）、trivy の非標準な
+#     asset 名（Linux-64bit / macOS-ARM64）を 1 エントリで linux-x64＋macos-arm64 の両対応にできない。
+#   - linux 単独で lock すると locked=true 下で macОS の `mise install` が
+#     「No lockfile URL ... on platform macos-arm64」で落ちる（ローカル開発を壊す）。
+# よって workflow 側で公式 checksums の sha256 を直接 pin する（その値は github backend が
+# linux-x64 に記録する checksum と一致する）。ローカルは prek hook が未インストール時 skip。
 
 [tools]
-prek = "0.4.4"      # pre-commit 互換のフックランナー
-pinact = "4.1.0"    # GitHub Actions の uses: を full commit SHA に pin
-hadolint = "2.14.0" # Dockerfile linter（ローカル hook で使用）
-ghalint = "1.5.6"   # GitHub Actions セキュリティ linter（permissions 最小化等）
-gitleaks = "8.30.1" # ハードコードされた secret の検出
+prek = "0.4.4"        # pre-commit 互換のフックランナー
+pinact = "4.1.0"      # GitHub Actions の uses: を full commit SHA に pin
+hadolint = "2.14.0"   # Dockerfile linter（ローカル hook で使用）
+ghalint = "1.5.6"     # GitHub Actions セキュリティ linter（permissions 最小化等）
+gitleaks = "8.30.1"   # ハードコードされた secret の検出
+"aqua:EmbarkStudios/cargo-deny" = "0.19.9" # Rust 依存の advisories/licenses/bans/sources 監査（cargo metadata のみ＝ビルドしない。短縮名未登録なので aqua backend を明示。0.16 系は RUSTSEC の CVSS 4.0 を parse できないため 0.19 系が必須）
 
 [settings]
 # 開発ツールを checksum 固定する。bootstrap として最初に一度

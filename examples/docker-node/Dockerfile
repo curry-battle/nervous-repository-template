@@ -10,14 +10,15 @@ WORKDIR /app
 
 # 本番依存だけを解決（runtime 用の node_modules）。store は BuildKit cache mount で共有。
 FROM base AS prod-deps
-COPY pnpm-lock.yaml ./
+# .npmrc も先に COPY する（pnpm fetch がレジストリ設定を読むため。registry を Takumi Guard に向ける）
+COPY pnpm-lock.yaml .npmrc ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --prod
 COPY package.json pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --offline --frozen-lockfile
 
 # dev 依存込みで TypeScript をコンパイル
 FROM base AS build
-COPY pnpm-lock.yaml ./
+COPY pnpm-lock.yaml .npmrc ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
 COPY package.json pnpm-workspace.yaml tsconfig.json server.ts ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --offline --frozen-lockfile

@@ -12,7 +12,8 @@
 | `package.json` | `packageManager` で pnpm を固定 / devDeps に typescript・@types/node |
 | `pnpm-lock.yaml` | 依存の固定（integrity）。`--frozen-lockfile` で厳格インストール |
 | `pnpm-workspace.yaml` | pnpm のサプライチェーン設定（下記） |
-| `Dockerfile` | multi-stage（prod-deps + tsc build + runtime）/ digest 固定 / 非 root / healthcheck |
+| `.npmrc` | レジストリを Takumi Guard（`https://npm.flatt.tech`）に向ける（悪性パッケージをレジストリ段でブロック）。トークンは env 経由・直書き禁止 |
+| `Dockerfile` | multi-stage（prod-deps + tsc build + runtime）/ digest 固定 / 非 root / healthcheck。`pnpm fetch` 前に `.npmrc` を COPY |
 | `docker-compose.yml` | 上記をビルドして起動する最小構成 |
 
 ## 使い方

@@ -47,6 +47,9 @@
   "pre-commit": { enabled: true },
   // mise ツール(prek / pinact)も Renovate で更新
   mise: { enabled: true },
+  // cargo manager は config:recommended で既定有効（無効化していない）。
+  // examples/docker-rust/Cargo.lock は rangeStrategy:"pin" でそのまま pin 維持される。
+  // 機能上の変更は不要なため、この方針を明示するコメントのみ。
 
   packageRules: [
     {

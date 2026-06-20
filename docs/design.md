@@ -54,6 +54,20 @@
 - **Renovate は Mend ホスト型 App 前提**。`GITHUB_TOKEN` の self-hosted だと Renovate PR が CI/autolabeler を発火しない。
 - **依存更新 PR ≒ 安全**：CI は依存の install/build/test をしない（hook と mise は CI 非実行）。実行され得るのは `uses:` の Action のみで、cooldown、最小権限、secret なしで緩和済み。アプリコードを足して CI で依存を実行し始めたら別途要対策。
 
+### 依存の監査（cargo-deny / trivy / pnpm audit）
+
+依存の既知脆弱性・ライセンス・誤設定を検出する。**いずれも「依存コードをビルド/実行しない」**よう設計し、CI から PR の依存コードを走らせない原則（上記「依存更新 PR ≒ 安全」）を保つ。
+
+- **Rust 依存の監査（cargo-deny）**：`Audit Rust deps (cargo-deny)` ジョブ（固定版を checksum 検証して実行）＋ pre-commit hook。`deny.toml` の advisories（RUSTSEC・unmaintained・yanked）／ licenses（permissive のみ allowlist）／ bans（複数版・wildcard）／ sources（crates.io のみ）を検査する。**`cargo metadata` のみ**を使い build script を走らせない。
+- **ファイルシステムスキャン（trivy）**：`Scan filesystem (trivy)` ジョブ（固定版を checksum 検証 → `trivy fs --scanners vuln,misconfig .`）＋ pre-commit hook。lockfile / 設定ファイルの**静的スキャン**（`trivy image` ではないのでイメージのビルド・実行は不要）。
+- **npm 依存の監査（pnpm audit）**：`Audit npm deps (pnpm audit)` ジョブ。pnpm は **pin + sha256 検証した standalone リリース tarball** から導入し（corepack は使わない＝PR の `packageManager` に CI 実行の pnpm を差し替えさせない。ghalint / gitleaks / cargo-deny / trivy と同じ pin+checksum パターン）、`examples/docker-node` で `pnpm audit --audit-level high`。**install せず** lockfile を読んで registry の advisory API を問い合わせるだけ。
+- **npm 側と Rust 側は守りの置き場所が違う（意図的な非対称）**：`pnpm audit` は**脆弱性（advisory）監査のみ**で、cargo-deny の licenses / bans 相当は持たない。npm 側の広い守りは代わりに**install 時**の `examples/docker-node/pnpm-workspace.yaml` に置いている（cooldown=`minimumReleaseAge`／非標準サブ依存ブロック=`blockExoticSubdeps`（sources 相当を部分カバー）／postinstall 等ライフサイクルスクリプトのブロック=`allowBuilds:{}`／lockfile 整合の fail-closed 検証=`verifyDepsBeforeRun:error`）。一方 Rust 側は cargo がライフサイクルスクリプトの概念が弱く install 時ハードニングが薄いぶん、**audit 時**の `deny.toml` で licenses（許可ライセンス外を CI fail）／ bans（複数版・wildcard）を強制する。結果として **npm 側にはライセンス強制と重複版 bans が無い**（必要なら license-checker 系の CI ステップや `pnpm dedupe --check` を足せる）。`vulnerabilities` は両者で対等。
+- cargo-deny は mise で version・checksum 固定（aqua backend で linux-x64 / macos-arm64 とも checksum 記録。下記「外部依存の…固定」の mise 経路に乗る）。trivy は **意図的に mise 管理外**：mise の `github` backend なら checksum を記録できる（`aqua` / `ubi` backend は未記録）が、mise の `asset_pattern` は `{version}` しか展開せず（`{os}` / `{arch}` 不可）、trivy の非標準な asset 名（`Linux-64bit` / `macOS-ARM64`）を 1 エントリで linux-x64（CI）＋ macos-arm64（ローカル）の両対応にできない。linux 単独で lock すると `locked=true` 下で macOS の `mise install` が「No lockfile URL … on platform macos-arm64」で落ち、ローカル開発を壊す。よって workflow 側で公式 checksums の sha256 を直接 pin する（その値は github backend が linux-x64 に記録する checksum と一致するので、実質同じものを別経路で固定しているだけ）。pnpm も同様に workflow 側で version + sha256 を pin する（バージョンは example の `packageManager` に合わせる）。
+- **これらの監査ツール版は Renovate の自動更新「対象外」＝手動更新**。理由: workflow の env に直書きした `*_VERSION` / `*_SHA256`（cargo-deny / trivy / pnpm、および既存の ghalint / gitleaks）を解析する manager を `renovate.json5` に置いていない（customManager 無し）。特に **sha256 は Renovate が再計算できない**ため、version だけ追従させても checksum が陳腐化して CI が落ちる。版を上げるときは **workflow の version と sha256 を手で同時に更新する**（sha256 はリリースの公式 checksums.txt から取る）。なお監査"対象"である依存そのもの（`package.json` / `pnpm-lock.yaml` の npm 依存、`Cargo.toml` / `Cargo.lock` の cargo 依存）は Renovate の npm / cargo manager が通常どおり更新する。
+- **二重管理の同期ルール（ドリフト注意）**:
+  - **cargo-deny** は `mise.toml`（Renovate の mise manager が更新）と workflow env（手動）の 2 箇所に version がある。版を上げたら両方を揃え、`mise lock` 後に workflow の `CARGO_DENY_SHA256` を `mise.lock` の linux-x64 checksum と一致させる。
+  - **pnpm** は `examples/docker-node/package.json` の `packageManager`（Renovate の npm manager が更新）と workflow の `PNPM_VERSION`（手動）の 2 系統がある。Renovate が前者だけ上げると乖離し得る（pnpm 11 系なら audit 自体は動くが）。版を上げるときは workflow 側の `PNPM_VERSION` / `PNPM_SHA256` も合わせる。
+
 ### CI ワークフローのハードニング
 
 - **CI workflow**：checkout は `persist-credentials: false` ／ `contents: read` 起点、secret なし、`pull_request_target` 不使用 ／ 各ジョブに `timeout-minutes`。
@@ -97,14 +111,15 @@ pin している release-drafter v6 は `categories[].exclusive` 非対応のた
 |---|---|
 | `.github/release-drafter.yml` | categories / autolabeler / version-resolver |
 | `.github/workflows/release-drafter.yml` | push:main でドラフト更新、PR で autolabel |
-| `.github/workflows/pr-validation.yml` | PR title・branch 名・Actions の SHA 固定を検証 |
+| `.github/workflows/pr-validation.yml` | PR の必須チェック（PR title / Actions・hook・mise・Docker の pin 検証 / ghalint / gitleaks / cargo-deny / trivy / pnpm audit の計 10 ジョブ）。branch 名チェックは廃止済み |
 | `renovate.json5` | 依存更新（cooldown + digest 固定） |
 | `commit-check.toml` | commit / branch の規則 |
 | `.pre-commit-config.yaml` | prek フック（commit-check + pinact、`rev` も SHA 固定） |
-| `mise.toml` / `mise.lock` | 開発 CLI（prek / pinact / hadolint / ghalint / gitleaks）の version・checksum 固定 |
+| `mise.toml` / `mise.lock` | 開発 CLI（prek / pinact / hadolint / ghalint / gitleaks / cargo-deny）の version・checksum 固定（trivy は asset 名の都合で mise 管理外＝§依存の監査 参照） |
 | `create-labels.sh` | autolabeler 用ラベルの作成/更新 |
 | `scripts/check-*.sh` | CI と prek が共有する検査（hook rev / Docker digest / mise lock の静的検証） |
-| `examples/node-app/` | サンプル（Node + pnpm + TypeScript。`pnpm-lock.yaml`・corepack `packageManager` 固定、`pnpm-workspace.yaml` で supply-chain 設定、multi-stage(tsc build) + digest 固定 Dockerfile + compose）。`docker` ジョブの検証対象。README あり |
+| `examples/docker-node/` | サンプル（Node + pnpm + TypeScript。`pnpm-lock.yaml`・corepack `packageManager` 固定、`pnpm-workspace.yaml` で supply-chain 設定、multi-stage(tsc build) + digest 固定 Dockerfile + compose）。`docker` / `pnpm audit` ジョブの検証対象。README あり |
+| `examples/docker-rust/` | サンプル（Docker + Rust。`Cargo.lock` 固定、`cargo build --locked --frozen`、`deny.toml`(cargo-deny)、multi-stage(cargo fetch→offline build→distroless) + digest 固定 Dockerfile + compose）。`docker` / `cargo-deny` / `trivy` ジョブの検証対象。README あり |
 
 ## ラベル作成
 

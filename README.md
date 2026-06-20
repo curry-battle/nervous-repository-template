@@ -38,20 +38,23 @@ Conventional Commits の type（`feat` / `fix` …）で統一している。
 |---|---|---|
 | Actions を SHA 固定 | [pinact](https://github.com/suzuki-shunsuke/pinact) | pre-commit hook<br />PR（CI） |
 | workflow のセキュリティ lint | [ghalint](https://github.com/suzuki-shunsuke/ghalint) | pre-commit hook<br />PR（CI） |
-| 依存更新（Actions / hook / mise / Docker） | [Renovate](https://docs.renovatebot.com/) | 定期（Renovate スケジュール） |
+| 依存更新（Actions / hook / mise / Docker / npm / Cargo） | [Renovate](https://docs.renovatebot.com/) | 定期（Renovate スケジュール） |
+| npm 依存の脆弱性監査（install せず lockfile + advisory API） | [pnpm audit](https://pnpm.io/cli/audit) | PR（CI） |
+| Rust 依存の監査（advisories / licenses / bans / sources） | [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) | pre-commit hook<br />PR（CI） |
 | secret の検出 | [gitleaks](https://github.com/gitleaks/gitleaks) | pre-commit hook<br />PR（CI） |
+| ファイルシステムの脆弱性 / 誤設定スキャン | [trivy](https://github.com/aquasecurity/trivy) | pre-commit hook<br />PR（CI） |
 
 #### Docker
 
 | 目的 | ツール | チェックするタイミング |
 |---|---|---|
-| Dockerfile lint + base image の digest 固定 | [hadolint](https://github.com/hadolint/hadolint) + 自前チェック（`examples/node-app/` がサンプル） | pre-commit hook<br />PR（CI） |
+| Dockerfile lint + base image の digest 固定 | [hadolint](https://github.com/hadolint/hadolint) + 自前チェック（`examples/docker-node/`・`examples/docker-rust/` がサンプル） | pre-commit hook<br />PR（CI） |
 
 #### 開発環境
 
 | 目的 | ツール | チェックするタイミング |
 |---|---|---|
-| 開発 CLI のバージョン固定 | [mise](https://mise.jdx.dev/)（prek / pinact / hadolint / ghalint / gitleaks） | mise install 時<br />PR（CI で lock 検証） |
+| 開発 CLI のバージョン固定 | [mise](https://mise.jdx.dev/)（prek / pinact / hadolint / ghalint / gitleaks / cargo-deny） | mise install 時<br />PR（CI で lock 検証） |
 
 ## クイックスタート
 
@@ -65,7 +68,8 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 2. `main` の Branch protection で次を required にする:
    `Validate PR title` / `Verify actions are SHA-pinned` /
    `Verify hooks are SHA-pinned` / `Verify mise tools are locked` / `Verify Docker (lint / digest-pinned / compose)` /
-   `Lint workflows (ghalint)` / `Scan for secrets (gitleaks)`
+   `Lint workflows (ghalint)` / `Scan for secrets (gitleaks)` /
+   `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`
 3. [Renovate App](https://github.com/apps/renovate) を有効化
 4. `bash create-labels.sh` でラベルを作成
 

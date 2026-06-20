@@ -1,0 +1,14 @@
+# サンプル: 上の Dockerfile をビルドして起動する最小構成。
+services:
+  app:
+    build:
+      context: .
+    image: sample-rust-app:local
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/sample-rust-app", "healthcheck"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
