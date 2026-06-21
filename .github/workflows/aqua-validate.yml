@@ -1,0 +1,193 @@
+name: aqua-validate
+
+# aqua exec を介してツールを実行する 5 ジョブ群。
+# pr-validation.yml から分離した理由:
+#   - GitHub Actions の on: は workflow 単位で per-job 指定できない。
+#   - aqua-exec ジョブは ツール bump (例: trivy 版上げ) の post-merge 検証として
+#     `push: main` でも実行したいが、pr-title 等 PR 専用ジョブは push:main で動かしたくない。
+# そこで本 workflow に aqua-exec 5 ジョブを集約し on: [pull_request, push:main] を付与する。
+#
+# Trust model (正直版):
+#   pull_request の CI は PR head の workflow / local action 定義で走る。よって overlay/guard
+#   step を含む本 workflow 自体も PR が改変可能。**この PR run は advisory** と位置付ける:
+#     - secret 不付与・`GITHUB_TOKEN` は read-only・public source のみで blast radius を限定。
+#     - base-branch overlay は『aqua.yaml / aqua-checksums.json による PR 由来のツール差し替え』を
+#       重ねて防ぐ追加防壁であり、唯一の防壁ではない。
+#     - merge は CODEOWNERS (.github/workflows / .github/actions / aqua.yaml / aqua-checksums.json)
+#       + branch protection の "Require review from Code Owners" で maintainer レビュー必須化する。
+#       これが authoritative なゲート。
+#   push:main の run は base==実行 ref (main = 信頼済み) で走り、overlay も no-op になるため、
+#   ツール bump の post-merge 実機検証として **authoritative** な検証を担う。
+#
+# security-critical note (overlay step を local composite action に括り出さない理由):
+#   overlay は『PR head の aqua 設定を信用しない』ためのもので、そのロジックを
+#   PR head から uses で読まれる local action に置くと PR がその action ファイルを書換えて
+#   overlay 自体を無効化できる (trust boundary が壊れる)。よって 5 ジョブの inline 重複は
+#   許容し、本コメントを 5 ジョブ各々の overlay 直前に同期コメントとして付ける
+#   (どこか 1 つを編集したら 5 箇所すべて同期させること)。
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # --- workflow のセキュリティ lint（ghalint） --------------------------------
+  gha-lint:
+    name: Lint workflows (ghalint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      # security-critical: 5 ジョブで同期維持。trust 確立ステップなので local action 化しない (PR head から読まれるため)。
+      - name: Pin aqua config to trusted base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
+             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
+            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
+          else
+            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
+          fi
+      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+        with:
+          aqua_version: v2.x.y
+      - run: aqua install
+      - run: aqua exec -- ghalint run
+
+  # --- secret スキャン（gitleaks） --------------------------------------------
+  gitleaks:
+    name: Scan for secrets (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      # security-critical: 5 ジョブで同期維持。trust 確立ステップなので local action 化しない (PR head から読まれるため)。
+      - name: Pin aqua config to trusted base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
+             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
+            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
+          else
+            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
+          fi
+      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+        with:
+          aqua_version: v2.x.y
+      - run: aqua install
+      - run: aqua exec -- gitleaks dir . --redact --no-banner
+
+  # --- Rust 依存の監査（cargo-deny） ------------------------------------------
+  cargo-deny:
+    name: "Audit Rust deps (cargo-deny)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      # security-critical: 5 ジョブで同期維持。trust 確立ステップなので local action 化しない (PR head から読まれるため)。
+      - name: Pin aqua config to trusted base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
+             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
+            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
+          else
+            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
+          fi
+      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+        with:
+          aqua_version: v2.x.y
+      - run: aqua install
+      # --locked: コミット済み Cargo.lock がそのまま監査対象であることを保証する
+      # --config: 明示して deny.toml の所在を固定する
+      - run: aqua exec -- cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml
+
+  # --- ファイルシステムの脆弱性 / 誤設定スキャン（trivy） -----------------------
+  trivy:
+    name: "Scan filesystem (trivy)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      # security-critical: 5 ジョブで同期維持。trust 確立ステップなので local action 化しない (PR head から読まれるため)。
+      - name: Pin aqua config to trusted base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
+             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
+            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
+          else
+            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
+          fi
+      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+        with:
+          aqua_version: v2.x.y
+      - run: aqua install
+      # --severity HIGH,CRITICAL: 低 severity の揺れで CI を落とさない（pnpm --audit-level high と揃える）
+      - run: aqua exec -- trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --exit-code 1 --no-progress .
+
+  # --- npm 依存の監査（pnpm audit） -------------------------------------------
+  # install/build はしない（lockfile を読んで registry の advisory を問い合わせるだけ）。
+  pnpm-audit:
+    name: "Audit npm deps (pnpm audit)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      # security-critical: 5 ジョブで同期維持。trust 確立ステップなので local action 化しない (PR head から読まれるため)。
+      - name: Pin aqua config to trusted base branch
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
+             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
+            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
+          else
+            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
+          fi
+      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+        with:
+          aqua_version: v2.x.y
+      - run: aqua install
+      - name: pnpm audit
+        working-directory: examples/docker-node
+        run: aqua exec -- pnpm audit --audit-level high

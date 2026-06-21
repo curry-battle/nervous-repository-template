@@ -54,22 +54,30 @@ Conventional Commits の type（`feat` / `fix` …）で統一している。
 
 | 目的 | ツール | チェックするタイミング |
 |---|---|---|
-| 開発 CLI のバージョン固定 | [mise](https://mise.jdx.dev/)（prek / pinact / hadolint / ghalint / gitleaks / cargo-deny） | mise install 時<br />PR（CI で lock 検証） |
+| CLI ツールのバージョン・checksum 固定 | [aqua](https://aquaproj.github.io/)（prek / pinact / ghalint / gitleaks / cargo-deny / trivy / pnpm の 7 ツール） | aqua install 時<br />PR（CI で aqua-checksums 検証） |
+| aqua バイナリ自身の bootstrap | [mise](https://mise.jdx.dev/) | mise install 時 |
+
+hadolint は他ツールと別経路：CI は `hadolint/hadolint-action` (SHA pin)、ローカルは `.pre-commit-config.yaml` の remote hook (`rev` を full commit SHA で固定) で取得・実行する。aqua には載せない。
 
 ## クイックスタート
 
 ```bash
-mise install   # mise.lock の checksum で検証してインストール
+mise install   # mise.lock の checksum で aqua バイナリを取得
+aqua install   # aqua-checksums.json の checksum で各 CLI を取得
 prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
-# tool を追加/変更したら: mise lock --platform linux-x64,macos-arm64 で mise.lock を更新
+# tool を追加/変更したら: aqua.yaml を編集して `aqua update-checksum` で aqua-checksums.json を更新
 ```
 
 1. Squash merge のみ有効化（+ "Default to PR title for squash commits"）
 2. `main` の Branch protection で次を required にする:
    `Validate PR title` / `Verify actions are SHA-pinned` /
-   `Verify hooks are SHA-pinned` / `Verify mise tools are locked` / `Verify Docker (lint / digest-pinned / compose)` /
+   `Verify hooks are SHA-pinned` / `Verify aqua checksums are current` /
+   `Verify pnpm packageManager == aqua.yaml` /
+   `Verify Docker (lint / digest-pinned / compose)` /
    `Lint workflows (ghalint)` / `Scan for secrets (gitleaks)` /
    `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`
+   さらに `aqua.yaml` / `aqua-checksums.json` を maintainer レビュー必須にするため
+   `CODEOWNERS` を有効化（"Require review from Code Owners" を ON）。
 3. [Renovate App](https://github.com/apps/renovate) を有効化
 4. `bash create-labels.sh` でラベルを作成
 
