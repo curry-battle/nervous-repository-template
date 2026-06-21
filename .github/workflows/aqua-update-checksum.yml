@@ -1,14 +1,17 @@
 name: Update aqua checksums
 
-# Renovate が aqua.yaml の version を上げた PR で、aqua-checksums.json を自動再生成して
-# 同じ PR branch に push する。actor==renovate[bot] と paths で発火を絞り、
-# 人手 PR や無関係 PR では動かない。
+# Renovate が aqua.yaml の version を bump した PR に対して、
+# 対応する aqua-checksums.json の更新差分を補完する
+# 補完は 同じ PR branch に push する形でなされる
+
+
+# 注: security-audit.yml は base branch の aqua.yaml を overlay して
+#     PR 側のツール差し替えを無効化するが、この workflow は逆に PR head の
+#     aqua.yaml を直接読む (新 version の release asset を取得して hash を計算するため)。
 #
-# 注: この workflow は contents:write + head ref で動き、base-branch overlay を経由しない。
-#     update-checksum-action は `aqua update-checksum -deep -prune` を実行し
-#     (asset の download + ハッシュ計算のみで binary を実行しない)、push は内部の
-#     commit-action (`github_token` 明示渡し) が担う。よって checkout の
-#     persist-credentials は false で問題ない (ghalint policy 013 にも適合)。
+#     悪意ある PR が aqua.yaml に悪性 package を仕込めば、CI はその release を download する。
+#     しかし update-checksum-action は download + hash 計算のみで binary を exec しないため、
+#     悪性 bytes は単に aqua-checksums.json に hash として記録されるだけで、任意コード実行には至らない。
 
 on:
   pull_request:
@@ -25,12 +28,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write          # Renovate PR の branch に push する
+      contents: write # Renovate PR の branch に push する
       pull-requests: read
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.head_ref }}
+          # push は後続の update-checksum-action が github_token を明示で受け取って行うため、
+          # checkout 時点で token を git config に残す必要は無い
           persist-credentials: false
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:

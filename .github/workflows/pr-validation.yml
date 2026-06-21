@@ -1,16 +1,16 @@
 name: PR Validation
 
-# PR の入口で PR title が Conventional Commits 形式かを検証する
-# (squash 後の main コミット & リリースノートの1行になるため必須)。
-# commit message 自体はローカル prek のみで縛る方針なので CI では検証しない。
+# PR の入口で必須の整合性チェックを集めた workflow。merge をブロックする gate として機能する。
+#   - pr-title:       PR title が Conventional Commits 形式か (squash 後の main コミット
+#                     とリリースノート 1 行になるため)
+#   - pin-actions:    GitHub Actions の uses が full commit SHA で固定されているか
+#   - pin-hooks:      pre-commit hook の rev が full commit SHA で固定されているか
+#   - aqua-checksums: aqua-checksums.json が aqua.yaml と整合しているか
+#   - pnpm-aqua-sync: examples の packageManager と aqua.yaml の pnpm version が一致しているか
+#   - docker:         Dockerfile の lint / base image の digest 固定 / compose の構文
 #
-# ブランチ名の Conventional Branch チェックは廃止した。
-# 理由: ブランチ名は squash マージで main の履歴に残らず、リリースノートにも影響しない。
-# 命名規則はあくまで運用上の目安であり、CI で必須チェックして PR をブロックするほどの
-# 保護対象ではないと判断したため。命名はローカル運用/レビューでの確認に委ねる。
-#
-# aqua exec を伴う 5 ジョブ (gha-lint / gitleaks / cargo-deny / trivy / pnpm-audit) は
-# `aqua-validate.yml` に分離している (push:main でも再実行して bump の取りこぼしを検知するため)。
+# aqua exec を伴う監査系 5 ジョブ (gha-lint / gitleaks / cargo-deny / trivy / pnpm-audit) は
+# security-audit.yml に分離している (push:main でも再実行して bump の取りこぼしを検知するため)。
 
 on:
   pull_request:
@@ -44,11 +44,9 @@ jobs:
             ci
             chore
             revert
-          # scope は任意・自由記述（中身は縛らない）
+          # scope は任意、自由記述 (中身は縛らない)
           requireScope: false
-          # subject の整形ルールは課さない（最小: type 形式のみ）
-          # 破壊的変更の "!" を許可
-          # （subjectPattern を設定しないことで subject 文面は自由）
+          # subjectPattern は設定しない (type 形式以外、subject 文面は自由。"!" 付きの破壊的変更も許可)
 
   # --- GitHub Actions が full commit SHA で固定されているか検証 ----------------
   # fix: "false" = 修正せず検証のみ。未固定の uses: があれば CI を失敗させる。
@@ -80,9 +78,10 @@ jobs:
       - run: bash scripts/check-hook-rev-sha.sh
 
   # --- aqua-checksums.json が aqua.yaml と整合しているか検証 ----------------------
-  # ツールは実行せず download + ハッシュ計算のみ。よって PR head の aqua 設定を直接検証してよい
-  # (base-branch overlay 不要)。aqua.yaml の version を上げたが aqua-checksums.json を更新し
-  # 忘れた PR を fail させる。
+  # aqua.yaml の version を上げたが aqua-checksums.json を更新し忘れた PR を fail させる。
+  # security-audit.yml と違って base-branch overlay は要らない: ここで実行する
+  # `aqua update-checksum` は download + hash 計算しかせず binary を exec しないため、
+  # PR head の aqua 設定をそのまま検証してよい。
   aqua-checksums:
     name: Verify aqua checksums are current
     runs-on: ubuntu-latest

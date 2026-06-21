@@ -79,15 +79,15 @@
   |---|---|---|
   | GitHub Actions (`uses:`) | pinact / Renovate(`pinGitHubActionDigests`) | `pin-actions`（pinact-action `fix:false`） |
   | pre-commit hook (`rev`) | 手動 / Renovate | `pin-hooks`（`rev` が 40 桁 SHA か検証） |
-  | aqua 管理 CLI ツール | `aqua-checksums.json`（`aqua update-checksum` で生成） | `aqua-checksums`（`aqua update-checksum --check` で aqua.yaml との整合検証）／aqua-validate の各 job は base-branch overlay で信頼済み aqua 設定を実行 |
+  | aqua 管理 CLI ツール | `aqua-checksums.json`（`aqua update-checksum` で生成） | `aqua-checksums`（`aqua update-checksum --check` で aqua.yaml との整合検証）／security-audit の各 job は base-branch overlay で信頼済み aqua 設定を実行 |
   | aqua 自身の bootstrap | `mise lock` → `mise.lock`（aqua 1 エントリのみ） | （CI では aqua-installer で別経路 pin。ローカルは `mise install` の locked 検証） |
   | Docker ベースイメージ (`FROM`) | Renovate(`docker:pinDigests`) | `docker`（全 `FROM` が `@sha256:` か検証 + hadolint(recursive) + compose 構文） |
 
   検査ロジックは `scripts/check-*.sh` に集約し、CI と prek hook が同じ実装を共有する（挙動差や修正漏れの防止）。
 - **`aqua install` は CI でも実行する**：手動 `curl` + `sha256sum -c` の置換として `aquaproj/aqua-installer` で aqua 自身を SHA pin した上で `aqua install` → `aqua exec -- <tool>` する。aqua はパッケージ取得とハッシュ検証のみを行い、パッケージ固有の installer スクリプトは実行しない（`require_checksum: true` で fail-closed）。
 - **base-branch config overlay（ハードニング）**：`pull_request` イベントの aqua-exec ジョブは PR head ではなく信頼済み base branch の `aqua.yaml` / `aqua-checksums.json` を使う。これにより PR が自分の CI でツールを攻撃者バイナリに差し替える経路を断つ。`push: main` では base==実行 ref なので overlay は no-op になり、ツール bump の post-merge 実機検証として機能する。
-- **trust model（正直版・必ず読む）**：`pull_request` の CI は **PR head の workflow / local action 定義で走る**。overlay/guard step を含む `aqua-validate.yml` 自体も PR が改変できるため、**PR run は advisory** と位置付ける。advisory でも価値は残る—secret 不付与・`GITHUB_TOKEN` は read-only・public source のみで blast radius を限定する。merge は **CODEOWNERS（`aqua.yaml` / `aqua-checksums.json` / `.github/workflows/` / `.github/actions/`） + branch protection の "Require review from Code Owners"** が authoritative なゲート。`push: main` の run は base==実行 ref（信頼済み main）で走り overlay も no-op になるため、ツール bump の **authoritative な post-merge 検証**を担う。
-- **overlay/installer を local composite action に括り出さない理由**：overlay は『PR head の aqua 設定を信用しない』ためのもの。そのロジックを PR head から `uses:` で読まれる local action に置くと、PR がその action ファイルを書換えるだけで overlay を no-op 化できる（trust boundary が壊れる）。よって `aqua-validate.yml` の 5 ジョブに inline で重複させ、同期コメントで保守する。
+- **trust model（正直版・必ず読む）**：`pull_request` の CI は **PR head の workflow / local action 定義で走る**。overlay/guard step を含む `security-audit.yml` 自体も PR が改変できるため、**PR run は advisory** と位置付ける。advisory でも価値は残る—secret 不付与・`GITHUB_TOKEN` は read-only・public source のみで blast radius を限定する。merge は **CODEOWNERS（`aqua.yaml` / `aqua-checksums.json` / `.github/workflows/` / `.github/actions/`） + branch protection の "Require review from Code Owners"** が authoritative なゲート。`push: main` の run は base==実行 ref（信頼済み main）で走り overlay も no-op になるため、ツール bump の **authoritative な post-merge 検証**を担う。
+- **overlay/installer を local composite action に括り出さない理由**：overlay は『PR head の aqua 設定を信用しない』ためのもの。そのロジックを PR head から `uses:` で読まれる local action に置くと、PR がその action ファイルを書換えるだけで overlay を no-op 化できる（trust boundary が壊れる）。よって `security-audit.yml` の 5 ジョブに inline で重複させ、同期コメントで保守する。
 - **`CODEOWNERS` で aqua 設定 / CI workflow / local action 変更を maintainer レビュー必須に**：`aqua.yaml` / `aqua-checksums.json` / `.github/workflows/` / `.github/actions/` を `.github/CODEOWNERS` 対象にする。default branch の branch protection で "Require review from Code Owners" を ON にしないと無効になる点に注意（hard 条件）。
 - **mise の lockfile（bootstrap 専用）**：`mise.toml` は aqua バイナリ 1 本のみを宣言し、`lockfile=true` / `locked=true` で `mise.lock` の checksum 検証を維持する。CLI ツールの実体は `aqua.yaml` + `aqua-checksums.json` に集約済み。
 
@@ -113,8 +113,8 @@ pin している release-drafter v6 は `categories[].exclusive` 非対応のた
 |---|---|
 | `.github/release-drafter.yml` | categories / autolabeler / version-resolver |
 | `.github/workflows/release-drafter.yml` | push:main でドラフト更新、PR で autolabel |
-| `.github/workflows/pr-validation.yml` | PR の必須チェック（PR title / Actions・hook の pin 検証 / aqua-checksums 整合 / pnpm-aqua-sync / Docker 検証）。aqua-exec を伴う 5 ジョブは `aqua-validate.yml` に分離。branch 名チェックは廃止済み |
-| `.github/workflows/aqua-validate.yml` | aqua-exec 5 ジョブ（gha-lint / gitleaks / cargo-deny / trivy / pnpm-audit）。`pull_request` では base-branch overlay でツール差し替えを防ぎ、`push: main` でも実行して bump の post-merge 検証を行う |
+| `.github/workflows/pr-validation.yml` | PR の必須チェック（PR title / Actions・hook の pin 検証 / aqua-checksums 整合 / pnpm-aqua-sync / Docker 検証）。aqua-exec を伴う 5 ジョブは `security-audit.yml` に分離。branch 名チェックは廃止済み |
+| `.github/workflows/security-audit.yml` | aqua-exec 5 ジョブ（gha-lint / gitleaks / cargo-deny / trivy / pnpm-audit）。`pull_request` では base-branch overlay でツール差し替えを防ぎ、`push: main` でも実行して bump の post-merge 検証を行う |
 | `.github/workflows/aqua-update-checksum.yml` | Renovate の aqua.yaml 更新 PR で `aqua-checksums.json` を自動再生成（actor=renovate[bot] + paths ガード） |
 | `renovate.json5` | 依存更新（cooldown + digest 固定） |
 | `commit-check.toml` | commit / branch の規則 |
