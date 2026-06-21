@@ -15,9 +15,6 @@ mise.*.local.toml
 *.log
 tmp/
 
-# ローカルにのみ残す移行ハンドオフメモ (remote には push しない)
-aqua-migration-HANDOFF.md
-
 # Node（将来アプリコードを追加した場合）
 node_modules/
 dist/
