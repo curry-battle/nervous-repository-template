@@ -1,0 +1,39 @@
+# cargo-deny 設定。`cargo deny check` で advisories / licenses / bans / sources を検査する。
+# CI は cargo metadata のみを使う（依存のビルド/実行はしない）= 任意コード実行を避ける。
+
+[advisories]
+# RUSTSEC advisory DB を参照する。
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# 取り下げ（yanked）クレートはエラーにする。
+yanked = "deny"
+# cargo-deny 0.16 以降では脆弱性（vuln）と メンテ放棄（unmaintained）は常にエラー扱いで、
+# 個別の severity フィールドは廃止された。除外したい advisory があれば `ignore` に列挙する。
+# ignore = []
+
+[licenses]
+# 許可するのは permissive ライセンスのみ（copyleft は明示的に許可しない）。
+# 実際に依存ツリーで使われているものだけを列挙する（未使用の allow は cargo-deny が警告するため）。
+# 実プロジェクトでは依存が使う permissive ライセンス（BSD-2/3-Clause・ISC・Zlib 等）を必要に応じて足す。
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Unicode-3.0",   # unicode-ident
+  "Unlicense",     # memchr（Unlicense OR MIT）
+]
+# 自前のサンプルクレート（publish=false）は license 未設定なので license チェックから除外する。
+private = { ignore = true }
+# ライセンス検出の信頼度しきい値（1.0 に近いほど厳格）。
+confidence-threshold = 0.93
+
+[bans]
+# 同一クレートの複数バージョン混在を警告する。
+multiple-versions = "warn"
+# ワイルドカード（"*"）のバージョン要求を禁止する。
+wildcards = "deny"
+
+[sources]
+# 未知のレジストリ / git ソースを禁止する。
+unknown-registry = "deny"
+unknown-git = "deny"
+# 許可するのは crates.io レジストリのみ。
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

@@ -19,6 +19,9 @@ tmp/
 node_modules/
 dist/
 
+# Rust（examples/docker-rust の cargo ビルド成果物）
+target/
+
 # Python
 __pycache__/
 *.pyc

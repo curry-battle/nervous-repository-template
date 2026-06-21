@@ -10,16 +10,19 @@ WORKDIR /app
 
 # 本番依存だけを解決（runtime 用の node_modules）。store は BuildKit cache mount で共有。
 FROM base AS prod-deps
-COPY pnpm-lock.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch --prod
-COPY package.json pnpm-workspace.yaml ./
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --offline --frozen-lockfile
+# fetch 前に package.json も COPY する（corepack が packageManager の固定版 pnpm を使うため。
+# pnpm fetch 自体は lockfile ベース）。.npmrc=レジストリ(Takumi Guard)、pnpm-workspace.yaml=supply-chain 設定。
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc ./
+# fetch（store 充填）→ offline install を 1 RUN に統合（package.json を fetch 前に置いたため
+# 両者の間に COPY が無く、分けると hadolint DL3059＝連続 RUN になる）。
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm fetch --prod && pnpm install --prod --offline --frozen-lockfile
 
 # dev 依存込みで TypeScript をコンパイル
 FROM base AS build
-COPY pnpm-lock.yaml ./
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm fetch
-COPY package.json pnpm-workspace.yaml tsconfig.json server.ts ./
+COPY tsconfig.json server.ts ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --offline --frozen-lockfile
 RUN pnpm run build
 

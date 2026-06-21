@@ -28,6 +28,7 @@ echo "$tools" | awk '
   NR == FNR { want[$0] = 1; next }                  # 第1引数（tools 一覧）を読む
   /^\[\[tools\./ {
     name = $0; sub(/^\[\[tools\./, "", name); sub(/\]\].*/, "", name)
+    gsub(/"/, "", name)   # backend 修飾名（[[tools."aqua:owner/repo"]]）の引用符を外して mise.toml 側と揃える
     seen[name] = 1
   }
   /checksum/ && name != "" { haschk[name] = 1 }

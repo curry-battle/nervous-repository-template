@@ -1,0 +1,14 @@
+# サンプル Rust アプリ。依存は serde / serde_json のみ（実アプリに差し替える前提）。
+[package]
+name = "sample-rust-app"
+version = "0.1.0"
+edition = "2021"
+# MSRV（このクレートがビルドできる最小 Rust バージョン）。
+rust-version = "1.80"
+# 公開しない（テンプレ同梱のサンプルのため）。
+publish = false
+
+[dependencies]
+# バージョンはキャレット範囲で固定（実体は Cargo.lock で厳密に pin する）。
+serde = { version = "^1.0.210", features = ["derive"] }
+serde_json = "^1.0.128"

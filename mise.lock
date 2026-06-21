@@ -1,3 +1,9 @@
+[[tools."aqua:EmbarkStudios/cargo-deny"]]
+version = "0.19.9"
+backend = "aqua:EmbarkStudios/cargo-deny"
+"platforms.linux-x64" = { checksum = "sha256:f1f8eedc2a3ac297c540873f93785d4104b102c0079506b2a6b3221b7ec956af", url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.9/cargo-deny-0.19.9-x86_64-unknown-linux-musl.tar.gz"}
+"platforms.macos-arm64" = { checksum = "sha256:be6fd555e910ac360e25cbef4f16ead47d87d2545fa07aa27223ef0f9af1a02c", url = "https://github.com/EmbarkStudios/cargo-deny/releases/download/0.19.9/cargo-deny-0.19.9-aarch64-apple-darwin.tar.gz"}
+
 [[tools.ghalint]]
 version = "1.5.6"
 backend = "aqua:suzuki-shunsuke/ghalint"

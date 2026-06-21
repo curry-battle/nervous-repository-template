@@ -1,9 +1,10 @@
 # pnpm の設定（pnpm 11）。サプライチェーン対策を明示する。
 # 多くは pnpm 11 で既定 ON だが、テンプレートとして意図を明文化しておく。
 
-# 公開から一定時間が経つまで新規バージョンを解決しない（cooldown）。既定=1440分(1日)。
-# Renovate 側の minimumReleaseAge と同じ思想を、インストール時にも効かせる。
-minimumReleaseAge: 1440
+# 公開から一定時間が経つまで新規バージョンを解決しない（cooldown）。pnpm の単位は「分」。
+# Renovate 側の minimumReleaseAge（7 days）と揃え、同じ思想をインストール時にも効かせる。
+# 7 days = 7 × 1440 = 10080 分。
+minimumReleaseAge: 10080
 # 緊急のセキュリティ修正を待たず入れたい場合の除外（`pnpm audit --fix=update` が追記）。
 minimumReleaseAgeExclude: []
 

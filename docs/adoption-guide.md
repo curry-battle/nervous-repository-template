@@ -8,7 +8,7 @@
 - 設定の中身（type 語彙や cooldown 日数など）は**必ず AskUser で決めてから**書く。デフォルトを黙って流用しない。
 - lockfile（`mise.lock` / `pnpm-lock.yaml`）や `mise.lock` の checksum、action の SHA は**コピーせず対象環境で生成/解決し直す**（生成コマンドは各モジュール節に記載）。
 - **共有ファイルは丸ごとコピーしない**。`pr-validation.yml` / `.pre-commit-config.yaml` / `mise.toml` / `renovate.json5` は複数モジュールが同居する。選んだモジュールに対応する **job / hook / tool / 設定ブロックだけを抜き出して**マージする（各節の「抜き出すもの」を見る）。無関係な job を持ち込むと、未導入のスクリプトやツールを参照して壊れる。
-- **共通基盤（下表の `0`）を最初に置く**。ローカルフック系（A/D/E/H/I/J/K）は prek に、ツール固定系（D/F/H/I/J）は mise に乗る。基盤を用意してから各モジュールの hook / tool を足す。
+- **共通基盤（下表の `0`）を最初に置く**。ローカルフック系（A/D/E/H/I/J/K/M）は prek に、ツール固定系（D/F/H/I/J/M）は mise に乗る（M の trivy は mise 管理外＝後述）。基盤を用意してから各モジュールの hook / tool を足す。
 - 設計の背景は [design.md](./design.md) を参照。
 
 ---
@@ -23,6 +23,7 @@
 - **開発フロー（コア・推奨）**: A 規約強制 + B PR title + C リリース自動化 + K 語彙自己テスト
 - **セキュリティ・環境**: D / E / F / G / H / I（pinact / hook-rev / mise-lock / Renovate / ghalint / gitleaks）
 - **セキュリティ・環境（Docker・任意）**: J
+- **セキュリティ・環境（依存監査・任意）**: M（cargo-deny / trivy / pnpm audit。example を使うなら J と併用）
 - **リポ整備**: L
 
 ### Step 2. 依存解決とコンフリクト確認
@@ -65,13 +66,14 @@
 | セキュリティ・環境 | G | 依存更新（Renovate） | `renovate.json5` | 更新対象が存在すること |
 | セキュリティ・環境 | H | workflow セキュリティ lint（ghalint） | `gha-lint`ジョブ、`.pre-commit-config.yaml`、`mise.toml` | 0、D 推奨（未 pin と衝突） |
 | セキュリティ・環境 | I | secret スキャン（gitleaks） | `gitleaks`ジョブ、`.pre-commit-config.yaml`、`mise.toml` | 0 |
-| セキュリティ・環境 | J | Docker ベストプラクティス + digest 固定 | `examples/node-app/*`、`docker`ジョブ、`scripts/check-docker-digests.sh`、`.pre-commit-config.yaml`(pin-docker)、`renovate.json5`(`docker:pinDigests`) | 0（prek hook 利用時） |
+| セキュリティ・環境 | J | Docker ベストプラクティス + digest 固定 | `examples/docker-node/*`・`examples/docker-rust/*`、`docker`ジョブ、`scripts/check-docker-digests.sh`、`.pre-commit-config.yaml`(pin-docker)、`renovate.json5`(`docker:pinDigests`) | 0（prek hook 利用時） |
+| セキュリティ・環境 | M | 依存監査（cargo-deny / trivy / pnpm audit） | `Audit Rust deps (cargo-deny)`・`Scan filesystem (trivy)`・`Audit npm deps (pnpm audit)`ジョブ、`.pre-commit-config.yaml`(cargo-deny / trivy hook)、`mise.toml`(cargo-deny)、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml` | 0（prek hook 利用時）、J（example を使うなら） |
 | 開発フロー | K | type 語彙の自己テスト | `scripts/check-vocab-sync.sh`、`.pre-commit-config.yaml`（pre-commit hook のみ。当該ファイル変更時に発火） | 0 + A/B/C |
 | リポ整備 | L | リポ整備 | `.github/ISSUE_TEMPLATE/*`、`.github/pull_request_template.md`、`LICENSE`、`.gitignore` | — |
 
-> 基盤（`0`）：prek が A/D/E/H/I/J/K のローカルフックを動かし、mise が D/F/H/I/J の CLI を固定・checksum 検証する。最初に `.pre-commit-config.yaml` と `mise.toml` の土台を置き、各モジュールの hook / tool をそこへ足していく。CI だけで完結するモジュール（B/C/G、および D/H/I/J を「CI ジョブのみ」で使う場合）は基盤なしでも動くが、ローカルフックを使うなら基盤が要る。
+> 基盤（`0`）：prek が A/D/E/H/I/J/K/M のローカルフックを動かし、mise が D/F/H/I/J/M の CLI を固定・checksum 検証する（M の cargo-deny は mise、trivy は workflow 側 pin）。最初に `.pre-commit-config.yaml` と `mise.toml` の土台を置き、各モジュールの hook / tool をそこへ足していく。CI だけで完結するモジュール（B/C/G、および D/H/I/J を「CI ジョブのみ」で使う場合）は基盤なしでも動くが、ローカルフックを使うなら基盤が要る。
 
-> **抜き出し方の原則**：`pr-validation.yml` は job 単位（`pr-title` / `pin-actions` / `pin-hooks` / `mise-locked` / `docker` / `gha-lint` / `gitleaks`）で分離できる。選んだモジュールの job だけを対象リポの workflow にコピーする。`.pre-commit-config.yaml` は hook の `id` 単位、`mise.toml` は `[tools]` の行単位、`renovate.json5` は manager / 設定ブロック単位で抜く。各 job / hook が参照する `scripts/check-*.sh` も同時に持ち込む。
+> **抜き出し方の原則**：`pr-validation.yml` は job 単位（`pr-title` / `pin-actions` / `pin-hooks` / `mise-locked` / `docker` / `gha-lint` / `gitleaks` / `cargo-deny` / `trivy` / `pnpm-audit`）で分離できる。選んだモジュールの job だけを対象リポの workflow にコピーする。`.pre-commit-config.yaml` は hook の `id` 単位、`mise.toml` は `[tools]` の行単位、`renovate.json5` は manager / 設定ブロック単位で抜く。各 job / hook が参照する `scripts/check-*.sh` も同時に持ち込む。
 
 ---
 
@@ -141,7 +143,7 @@
 
 ### G. 依存更新（Renovate）
 - 参照: `renovate.json5`
-- 抜き出すもの: `renovate.json5` から、有効化する manager（github-actions / pre-commit / mise / docker / npm 等）と該当する設定ブロック（`minimumReleaseAge` / `packageRules` / `pinDigests` 等）だけを対象リポの Renovate 設定にマージ。使わない manager のルールは持ち込まない。
+- 抜き出すもの: `renovate.json5` から、有効化する manager（github-actions / pre-commit / mise / docker / npm / cargo 等）と該当する設定ブロック（`minimumReleaseAge` / `packageRules` / `pinDigests` 等）だけを対象リポの Renovate 設定にマージ。使わない manager のルールは持ち込まない。
 - AskUser:
   - **実行方式**: Mend ホスト型 App / self-hosted(GHA)。self-hosted は `GITHUB_TOKEN` だと PR が CI を発火しないため**別アイデンティティのトークン必須**
   - **cooldown 日数**: `minimumReleaseAge`（既定 7d、major 14d 等）
@@ -161,15 +163,37 @@
 - 注意: 導入時に **一度 `mise exec -- gitleaks dir .` を実行して誤検知を確認**（lockfile のハッシュ等）。誤検知が出たら allowlist を作る。
 
 ### J. Docker ベストプラクティス + digest 固定
-- 参照: `examples/node-app/*`(サンプル)、`docker`ジョブ、`scripts/check-docker-digests.sh`、`.pre-commit-config.yaml`(pin-docker)、`renovate.json5`(`docker:pinDigests`)
-- 抜き出すもの: `pr-validation.yml` の `docker` ジョブ + `scripts/check-docker-digests.sh` + `.pre-commit-config.yaml` の pin-docker hook + `renovate.json5` の `docker:pinDigests`。サンプルが要るなら `examples/node-app/` も。
+- 参照: `examples/docker-node/*`・`examples/docker-rust/*`(サンプル)、`docker`ジョブ、`scripts/check-docker-digests.sh`、`.pre-commit-config.yaml`(pin-docker)、`renovate.json5`(`docker:pinDigests`)
+- 抜き出すもの: `pr-validation.yml` の `docker` ジョブ + `scripts/check-docker-digests.sh` + `.pre-commit-config.yaml` の pin-docker hook + `renovate.json5` の `docker:pinDigests`。サンプルが要るなら言語に応じて `examples/docker-node/`（Node + pnpm）か `examples/docker-rust/`（Rust + cargo）を。
 - 生成:
   - base image の digest を対象環境で解決し、`docker buildx imagetools inspect <image:tag>` で得た `@sha256:...` を `FROM` に書く（コピー禁止）。
-  - サンプルを使うなら `pnpm-lock.yaml` を再生成: `corepack enable && pnpm install --lockfile-only`。
+  - Node サンプルを使うなら `pnpm-lock.yaml` を再生成: `corepack enable && pnpm install --lockfile-only`。Rust サンプルなら `cargo generate-lockfile` で `Cargo.lock` を生成。
 - AskUser:
   - **サンプルごと入れる / チェックだけ入れる**
-  - パッケージマネージャ・言語（pnpm/TS 等）
-- 注意: hadolint の lint と digest 検証は対象リポの Dockerfile 構成に合わせてパスを調整する。
+  - パッケージマネージャ・言語（pnpm/TS / cargo/Rust 等）
+- 注意: hadolint の lint と digest 検証は対象リポの Dockerfile 構成に合わせてパスを調整する。監査ジョブ（M）との対応は言語別: `docker-node` は pnpm audit、`docker-rust` は cargo-deny（`deny.toml`）。trivy（fs スキャン）は言語非依存で両方に効く。いずれも依存をビルド/実行しない静的監査。
+
+### M. 依存監査（cargo-deny / trivy / pnpm audit）
+- 参照: `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`ジョブ、`.pre-commit-config.yaml`(cargo-deny / trivy hook)、`mise.toml`(cargo-deny)、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml`
+- 抜き出すもの: **監査したい言語のぶんだけ**（独立に選べる）:
+  - **Rust（cargo-deny）**: `cargo-deny` ジョブ + `.pre-commit-config.yaml` の cargo-deny hook + `mise.toml` の `aqua:EmbarkStudios/cargo-deny` 行 + `deny.toml`。
+  - **FS / コンテナ（trivy）**: `trivy` ジョブ + `.pre-commit-config.yaml` の trivy hook（trivy は **mise 管理外**なので `mise.toml` には足さない）。
+  - **npm（pnpm audit）**: `pnpm-audit` ジョブ + `examples/docker-node/pnpm-workspace.yaml`（install 時のサプライチェーン設定）。
+- 生成（コピー禁止・対象環境で解決）:
+  - workflow の `*_VERSION` / `*_SHA256`（cargo-deny / trivy / pnpm）は、各リリースの公式 checksum を対象環境で取得して埋める（ghalint / gitleaks と同じ download + sha256 パターン）。**cargo-deny の sha256 は `mise.lock` の linux-x64 と一致**させる。trivy は公式 `checksums.txt` から。
+  - `deny.toml` は `cargo deny init` をベースに、対象リポの実依存に合わせて `licenses` allowlist を調整。publish=false の自前 crate は `[licenses] private = { ignore = true }`。
+- AskUser:
+  - **監査する言語**（multiSelect）: Rust(cargo-deny) / npm(pnpm audit) / FS(trivy)
+  - **cargo-deny の licenses allowlist**（permissive のみ等）
+  - **trivy の severity 閾値**（`HIGH,CRITICAL` 等。緩いと低重大度で CI が flaky になる）
+  - **required check 化**するか
+- 注意:
+  - **3 つとも「依存コードをビルド/実行しない」静的監査**（cargo-deny=cargo metadata / trivy=`fs`（`image` ではない）/ pnpm audit=install せず lockfile + advisory API）。CI で PR の依存を走らせない原則を保つ。
+  - **cargo-deny は 0.16 系不可**（現行 RUSTSEC の CVSS 4.0 を parse できず落ちる）→ **0.19 系以降**。
+  - **trivy は mise 管理外**：github backend なら checksum を記録できるが mise の `asset_pattern` が単一プラットフォーム固定で linux+macOS を 1 エントリに収められず、linux 単独 lock は macOS の `mise install` を壊す。workflow 側で sha256 を直接 pin する。
+  - **workflow の `*_VERSION` / `*_SHA256` は Renovate 対象外＝手動更新**。cargo-deny は `mise.toml`↔workflow、pnpm は `package.json` の `packageManager`↔workflow `PNPM_VERSION` の**二重管理**なので版上げ時に揃える（詳細は design.md「依存の監査」）。
+  - **pnpm audit は脆弱性監査のみ**で cargo-deny の licenses / bans 相当は無い（非対称）。npm 側の広い守りは `pnpm-workspace.yaml`（cooldown / postinstall ブロック=`allowBuilds:{}` / `verifyDepsBeforeRun`）側に置く。
+  - pnpm は corepack ではなく **pin + sha256 検証した standalone tarball** で導入する（PR の `packageManager` に CI 実行の pnpm を差し替えさせない）。
 
 ### K. type 語彙の自己テスト
 - 参照: `scripts/check-vocab-sync.sh`、`.pre-commit-config.yaml`（**pre-commit hook のみ。CI には載せない**＝毎 PR 実行は過剰。当該ファイル変更時のみ発火）
@@ -199,6 +223,7 @@
 | H | `mise exec -- ghalint run`（違反なら既存 workflow を修正） | 0 + D 済み（未 pin で落ちる） |
 | I | `mise exec -- gitleaks dir .`（誤検知確認） | 0 + gitleaks |
 | J | `bash scripts/check-docker-digests.sh` / `docker build` + 起動 + healthcheck / `docker compose config -q` | Dockerfile・compose を移植済み |
+| M | `cargo deny check` / `trivy fs --scanners vuln,misconfig` / `pnpm audit --audit-level high` が通る（**負例**＝既知脆弱性・禁止ライセンス・禁止版で fail することも確認） | deny.toml・各ツール（cargo-deny は mise、trivy は別途入手） |
 | K | `bash scripts/check-vocab-sync.sh`（語彙の抽出元 4 箇所が一致） | A/B/C 済み |
 | G | `renovate-config-validator`（`renovate.json5` 構文） | validator を入手 |
 
@@ -211,7 +236,7 @@
 ファイルだけでは完結しない。選んだモジュールに応じてリポジトリ設定を手で入れる:
 
 - **C**: Squash merge のみ有効化 + "Default to PR title for squash commits" / `bash create-labels.sh` でラベル作成 / 初回の基準 tag `v0.1.0` を手動作成
-- **B / D / E / F / H / I / J**: 各 CI チェックを `main` の Branch protection で **required** にするか決める（required 化は任意・運用次第）
+- **B / D / E / F / H / I / J / M**: 各 CI チェックを `main` の Branch protection で **required** にするか決める（required 化は任意・運用次第。M は `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`）
 - **D**（任意）: GitHub 純正 **Enforce SHA pinning** ポリシーを ON
 - **G**: [Renovate App](https://github.com/apps/renovate) を有効化（self-hosted なら別アイデンティティのトークンを用意）
 
@@ -227,6 +252,7 @@
 - [ ] release-drafter のバージョンに `categories[].exclusive` が**対応しているか**。v6 系なら autolabeler 排他化で代替
 - [ ] `mise.lock` / `pnpm-lock.yaml` を**コピーせず生成**した
 - [ ] action の SHA と base image digest を**対象環境で解決**した
+- [ ] M を入れたなら、workflow の `*_VERSION` / `*_SHA256`（cargo-deny / trivy / pnpm）を対象環境で解決し、cargo-deny の sha256 を `mise.lock` と一致させた（これらは Renovate 対象外＝手動）。cargo-deny は 0.19 系以降を使った
 - [ ] `prek install` に **`--hook-type pre-commit --hook-type commit-msg --hook-type pre-push`** を含めた（commit-check は commit-msg / pre-push、その他のローカルフックは pre-commit 既定）
 - [ ] mise-locked / pin 系の CI 検証は **静的**（PR で `mise install` 等の実行をしない）
 - [ ] type 語彙が A/B/C/K の参照箇所で一致（K の自己テストで担保）

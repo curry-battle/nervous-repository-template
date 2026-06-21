@@ -164,3 +164,90 @@ jobs:
           tar -xzf gitleaks.tar.gz gitleaks
           ./gitleaks dir . --redact --no-banner
           rm -f gitleaks.tar.gz gitleaks
+
+  # --- Rust 依存の監査（cargo-deny：固定版を checksum 検証して実行） ----------------
+  # cargo-deny は cargo metadata のみを使い、依存のビルド/実行はしない（任意コード実行を避ける）。
+  # checksum は mise.lock の cargo-deny linux-x64 と一致させること。
+  cargo-deny:
+    name: "Audit Rust deps (cargo-deny)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      CARGO_DENY_VERSION: "0.19.9"
+      CARGO_DENY_SHA256: "f1f8eedc2a3ac297c540873f93785d4104b102c0079506b2a6b3221b7ec956af"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Run cargo-deny (pinned + checksum-verified)
+        run: |
+          url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          curl -fsSL -o cargo-deny.tar.gz "$url"
+          echo "${CARGO_DENY_SHA256}  cargo-deny.tar.gz" | sha256sum -c -
+          # バイナリだけ取り出す（LICENSE/README を作業ツリーに残さない。ghalint/gitleaks と同方針）
+          tar -xzf cargo-deny.tar.gz --strip-components=1 --wildcards '*/cargo-deny'
+          # --locked: コミット済み Cargo.lock がそのまま監査対象であることを保証する
+          # --config: 明示して deny.toml の所在を固定する
+          ./cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml
+          rm -f cargo-deny.tar.gz cargo-deny
+
+  # --- ファイルシステムの脆弱性 / 誤設定スキャン（trivy：固定版を checksum 検証して実行）---
+  # trivy fs は lockfile / 設定ファイルの静的スキャン（trivy image ではないのでビルド不要）。
+  # trivy は mise が checksum を lock できない（aqua/ubi backend とも未記録）ため mise 管理外。
+  # checksum は trivy 公式 checksums.txt の linux-x64（Linux-64bit.tar.gz）を直接 pin する。
+  trivy:
+    name: "Scan filesystem (trivy)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      TRIVY_VERSION: "0.71.2"
+      TRIVY_SHA256: "0510e71e2fd39bf863856d499c8dc19feb4e7336546394c502a8f5cc7ab27460"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Run trivy (pinned + checksum-verified)
+        run: |
+          url="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o trivy.tar.gz "$url"
+          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+          # --severity HIGH,CRITICAL: 低 severity の揺れで CI を落とさない（pnpm --audit-level high と揃える）
+          ./trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --exit-code 1 --no-progress .
+          rm -f trivy.tar.gz trivy
+
+  # --- npm 依存の監査（pnpm audit：install せず lockfile + advisory API のみ） ----------
+  # pnpm は workflow 側で固定する（corepack を使わない）。PR の package.json の packageManager に
+  # CI 実行する pnpm バイナリを差し替えさせないため、standalone リリース tarball を pin + sha256 検証して導入する
+  # （ghalint / gitleaks / cargo-deny / trivy と同じ pin+checksum パターン）。バージョンは example の packageManager に合わせる。
+  # install/build はしない（lockfile を読んで registry の advisory を問い合わせるだけ）。
+  pnpm-audit:
+    name: "Audit npm deps (pnpm audit)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      PNPM_VERSION: "11.6.0"
+      # pin した pnpm リリースの sha256（他ジョブと同じく改ざん検出のため検証する）
+      PNPM_SHA256: "74d64c1646385fb21691f32f0ab6aca1a9f5c829ba54d3cda3a24838a228e68c"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Install pinned pnpm (download + checksum-verified)
+        run: |
+          url="https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/pnpm-linux-x64.tar.gz"
+          curl -fsSL -o pnpm.tar.gz "$url"
+          echo "${PNPM_SHA256}  pnpm.tar.gz" | sha256sum -c -
+          mkdir -p "$HOME/pnpm-bin"
+          tar -xzf pnpm.tar.gz -C "$HOME/pnpm-bin"
+          echo "$HOME/pnpm-bin" >> "$GITHUB_PATH"
+          rm -f pnpm.tar.gz
+      - name: Run pnpm audit (no install)
+        working-directory: examples/docker-node
+        run: pnpm audit --audit-level high

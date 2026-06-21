@@ -12,7 +12,8 @@
 | `package.json` | `packageManager` で pnpm を固定 / devDeps に typescript・@types/node |
 | `pnpm-lock.yaml` | 依存の固定（integrity）。`--frozen-lockfile` で厳格インストール |
 | `pnpm-workspace.yaml` | pnpm のサプライチェーン設定（下記） |
-| `Dockerfile` | multi-stage（prod-deps + tsc build + runtime）/ digest 固定 / 非 root / healthcheck |
+| `.npmrc` | レジストリを Takumi Guard（`https://npm.flatt.tech`）に向ける（悪性パッケージをレジストリ段でブロック）。トークンは env 経由・直書き禁止 |
+| `Dockerfile` | multi-stage（prod-deps + tsc build + runtime）/ digest 固定 / 非 root / healthcheck。`pnpm fetch` 前に `.npmrc` を COPY |
 | `docker-compose.yml` | 上記をビルドして起動する最小構成 |
 
 ## 使い方
@@ -32,7 +33,7 @@ docker compose up --build
 
 pnpm 11 の既定を踏まえつつ、意図を明示しています。
 
-- **`minimumReleaseAge: 1440`**：公開から 1 日経たない新規バージョンは解決しない（cooldown）。Renovate 側の cooldown と同じ思想をインストール時にも効かせる。緊急時は `minimumReleaseAgeExclude` で個別除外。
+- **`minimumReleaseAge: 10080`**（分＝7日）：公開から 7 日経たない新規バージョンは解決しない（cooldown）。`renovate.json5` の `minimumReleaseAge: 7 days` と揃え、同じ思想をインストール時にも効かせる。緊急時は `minimumReleaseAgeExclude` で個別除外。
 - **`blockExoticSubdeps: true`**：非標準なサブ依存をブロック。
 - **`allowBuilds: {}`**：依存のライフサイクルスクリプト（postinstall 等）は既定でブロック。実行を許可するパッケージのみ allowlist に明示する。
 - **`verifyDepsBeforeRun: error`**：スクリプト実行前に `node_modules` と lockfile の整合を検証し、ズレていれば**失敗させる**（fail-closed。`install` だと自動で入れ直してしまう）。
