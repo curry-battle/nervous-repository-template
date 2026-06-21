@@ -9,11 +9,10 @@
 #   aqua install   # aqua.yaml の CLI を aqua-checksums.json の checksum で検証して取得
 #   prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 #
-# 注: bootstrap の backend 表記 (mise core registry の "aqua" か "aqua:aquaproj/aqua" か)
-# は mise 版で異なる。実装時に `mise install` が解決できる側を確定する (TODO)。
+# bootstrap は mise core registry の "aqua" を使用 (mise.lock 上は github:aquaproj/aqua に解決される)。
 
 [tools]
-aqua = "2.x.y"   # TODO: 実機で動く最新の aqua 版に解決し pin する
+aqua = "2.60.1"
 
 [settings]
 # bootstrap (aqua 1 本) を checksum 固定する。新規セットアップ時は

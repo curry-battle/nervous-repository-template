@@ -1,3 +1,79 @@
 {
-  "checksums": []
+  "checksums": [
+    {
+      "id": "github_release/github.com/EmbarkStudios/cargo-deny/0.19.9/cargo-deny-0.19.9-aarch64-apple-darwin.tar.gz",
+      "checksum": "BE6FD555E910AC360E25CBEF4F16EAD47D87D2545FA07AA27223EF0F9AF1A02C",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/EmbarkStudios/cargo-deny/0.19.9/cargo-deny-0.19.9-x86_64-unknown-linux-musl.tar.gz",
+      "checksum": "F1F8EEDC2A3AC297C540873F93785D4104B102C0079506B2A6B3221B7EC956AF",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/aquasecurity/trivy/v0.71.2/trivy_0.71.2_Linux-64bit.tar.gz",
+      "checksum": "0510E71E2FD39BF863856D499C8DC19FEB4E7336546394C502A8F5CC7AB27460",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/aquasecurity/trivy/v0.71.2/trivy_0.71.2_macOS-ARM64.tar.gz",
+      "checksum": "A9F585CAD53542A54EF286B5FA4199D081E5A061F8894635BDF3CE2608ECE7A9",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/gitleaks/gitleaks/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
+      "checksum": "B40AB0AE55C505963E365F271A8D3846EFBC170AA17F2607F13DF610A9AEB6A5",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/gitleaks/gitleaks/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+      "checksum": "551F6FC83EA457D62A0D98237CBAD105AF8D557003051F41F3E7CA7B3F2470EB",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/j178/prek/v0.4.4/prek-aarch64-apple-darwin.tar.gz",
+      "checksum": "D3D74F96BBB9FE88D14BDB3119501F8F39602B885E19F57C6567791599AFD231",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/j178/prek/v0.4.4/prek-x86_64-unknown-linux-musl.tar.gz",
+      "checksum": "4A0AA963C6468EBCD4734EE7D763E8C1223BFB9BDABCB4528A7AFAC6B0147E12",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/pnpm/pnpm/v11.6.0/pnpm-darwin-arm64.tar.gz",
+      "checksum": "87C901635A14481FB30566A3749041134FFD4317BC6FE866C345B69FDF9B6B85",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/pnpm/pnpm/v11.6.0/pnpm-linux-x64.tar.gz",
+      "checksum": "74D64C1646385FB21691F32F0AB6ACA1A9F5C829BA54D3CDA3A24838A228E68C",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/ghalint/v1.5.6/ghalint_1.5.6_darwin_arm64.tar.gz",
+      "checksum": "1262CAC411E27B4653E6B66B7B06580EBCC2026FDD903E12E6CB0E4591639DE6",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/ghalint/v1.5.6/ghalint_1.5.6_linux_amd64.tar.gz",
+      "checksum": "98EE0E3330DE7286F470D1E89C03FF7CE70D7A5998BA0F15969C400447BE579C",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/pinact/v4.1.0/pinact_darwin_arm64.tar.gz",
+      "checksum": "B670063CCFA178CDB5C7107D14E3DE896F10B93EDCC7DBE38B840CB99F2536DB",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "github_release/github.com/suzuki-shunsuke/pinact/v4.1.0/pinact_linux_amd64.tar.gz",
+      "checksum": "8FCBF1B3E95551C82FD995535E3C1DEFA70E23299CE36EB3AFD6C98778DE6CA0",
+      "algorithm": "sha256"
+    },
+    {
+      "id": "registries/github_content/github.com/aquaproj/aqua-registry/v4.526.0/registry.yaml",
+      "checksum": "E2BB546D74F7E8D5276F00F2BC342E0CA3D7AC34B7AA442058CBFDBE318346E8",
+      "algorithm": "sha256"
+    }
+  ]
 }

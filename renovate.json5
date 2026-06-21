@@ -13,7 +13,7 @@
     // aqua manager / aqua-registry の version を Renovate に追従させる公式 preset。
     // この preset が aqua.yaml の packages[*].version 追従をカバーするので、registries[].ref を
     // 別途 customManager で補う (preset の覆い範囲を確認の上、必要なら下記 customManager を削除)。
-    "github>aquaproj/aqua-renovate-config#2.x.x",
+    "github>aquaproj/aqua-renovate-config#2.13.0",
   ],
 
   // Mend App を "All repositories" で入れると default が silent(=PR/Issue を作らない)になる。

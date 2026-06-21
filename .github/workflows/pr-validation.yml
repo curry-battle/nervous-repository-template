@@ -93,13 +93,14 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      # TODO: aqua-installer の full SHA は pinact をローカル実行して解決後にコミットする。
-      # 暫定で <full-sha> プレースホルダ。CI では pin-actions が tag-only を fail させる。
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
-      - name: aqua update-checksum --check
-        run: aqua update-checksum --check
+          aqua_version: v2.60.1
+      # aqua v2 に --check フラグは無いので、再生成 → git diff で drift を検出する。
+      - name: Verify aqua-checksums.json is up to date
+        run: |
+          aqua update-checksum
+          git diff --exit-code aqua-checksums.json
 
   # --- pnpm の packageManager と aqua.yaml の version が一致しているか検証 -------
   # aqua.yaml と examples/docker-node/package.json の packageManager は別 consumer

@@ -5,8 +5,10 @@ name: Update aqua checksums
 # 人手 PR や無関係 PR では動かない。
 #
 # 注: この workflow は contents:write + head ref で動き、base-branch overlay を経由しない。
-#     update-checksum-action が「asset の download + ハッシュ計算」のみで binary を実行しない
-#     ことを前提とする (TODO: 実装時に確認し、Risks/Open Questions の該当行を解消)。
+#     update-checksum-action は `aqua update-checksum -deep -prune` を実行し
+#     (asset の download + ハッシュ計算のみで binary を実行しない)、push は内部の
+#     commit-action (`github_token` 明示渡し) が担う。よって checkout の
+#     persist-credentials は false で問題ない (ghalint policy 013 にも適合)。
 
 on:
   pull_request:
@@ -29,10 +31,10 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ github.head_ref }}
-          persist-credentials: true
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
-      - uses: aquaproj/update-checksum-action@<full-sha> # v0.x.y
+          aqua_version: v2.60.1
+      - uses: aquaproj/update-checksum-action@c5df5a5c2a897a9b807068f062140506d092e7ac # v0.2.7
         with:
           prune: true

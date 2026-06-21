@@ -60,9 +60,9 @@ jobs:
           else
             echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
           fi
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
+          aqua_version: v2.60.1
       - run: aqua install
       - run: aqua exec -- ghalint run
 
@@ -90,9 +90,9 @@ jobs:
           else
             echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
           fi
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
+          aqua_version: v2.60.1
       - run: aqua install
       - run: aqua exec -- gitleaks dir . --redact --no-banner
 
@@ -120,9 +120,9 @@ jobs:
           else
             echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
           fi
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
+          aqua_version: v2.60.1
       - run: aqua install
       # --locked: コミット済み Cargo.lock がそのまま監査対象であることを保証する
       # --config: 明示して deny.toml の所在を固定する
@@ -152,9 +152,9 @@ jobs:
           else
             echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
           fi
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
+          aqua_version: v2.60.1
       - run: aqua install
       # --severity HIGH,CRITICAL: 低 severity の揺れで CI を落とさない（pnpm --audit-level high と揃える）
       - run: aqua exec -- trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --exit-code 1 --no-progress .
@@ -184,9 +184,9 @@ jobs:
           else
             echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
           fi
-      - uses: aquaproj/aqua-installer@<full-sha> # v4.0.x
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.x.y
+          aqua_version: v2.60.1
       - run: aqua install
       - name: pnpm audit
         working-directory: examples/docker-node
