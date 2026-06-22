@@ -9,8 +9,8 @@
 #   3) PR の aqua-checksums job が --check で整合性検証
 registries:
   - type: standard
-    # Renovate aqua manager / customManager で更新 (float させない)
-    ref: v4.526.0
+    # aqua-renovate-config preset がこの annotation を検出して PR を出す (float させない)
+    ref: v4.526.0 # renovate: depName=aquaproj/aqua-registry
 
 checksum:
   enabled: true
