@@ -69,17 +69,26 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 ```
 
 1. Squash merge のみ有効化（+ "Default to PR title for squash commits"）
-2. `main` の Branch protection で次を required にする:
-   `Validate PR title` / `Verify actions are SHA-pinned` /
-   `Verify hooks are SHA-pinned` / `Verify aqua checksums are current` /
-   `Verify pnpm packageManager == aqua.yaml` /
-   `Verify Docker (lint / digest-pinned / compose)` /
-   `Lint workflows (ghalint)` / `Scan for secrets (gitleaks)` /
-   `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`
-   さらに `aqua.yaml` / `aqua-checksums.json` を maintainer レビュー必須にするため
-   `CODEOWNERS` を有効化（"Require review from Code Owners" を ON）。
-3. [Renovate App](https://github.com/apps/renovate) を有効化
-4. `bash create-labels.sh` でラベルを作成
+2. [Renovate App](https://github.com/apps/renovate) を有効化
+3. `bash create-labels.sh` でラベルを作成
+
+### 推奨設定（任意）
+
+- `main` の Branch protection で次の status check を required にすると、CI で失敗した PR を merge できなくなる:
+  - PR / workflow 検証
+    - `Validate PR title`
+    - `Verify actions are SHA-pinned`
+    - `Verify hooks are SHA-pinned`
+    - `Verify aqua checksums are current`
+    - `Verify pnpm packageManager == aqua.yaml`
+    - `Verify Docker (lint / digest-pinned / compose)`
+    - `Lint workflows (ghalint)`
+  - サプライチェーン監査
+    - `Scan for secrets (gitleaks)`
+    - `Audit Rust deps (cargo-deny)`
+    - `Scan filesystem (trivy)`
+    - `Audit npm deps (pnpm audit)`
+- `aqua.yaml` / `aqua-checksums.json` を maintainer レビュー必須にするため `CODEOWNERS` を有効化（"Require review from Code Owners" を ON）
 
 ## このリポジトリの要素を自分のリポジトリに取り入れる
 
