@@ -48,12 +48,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch origin "$BASE_REF" --depth=1
-          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
-             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
-            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-          else
-            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
-          fi
+          # fail-closed: base に aqua 設定が無ければ job fail。
+          # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
+          git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
           aqua_version: v2.60.1
@@ -78,12 +75,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch origin "$BASE_REF" --depth=1
-          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
-             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
-            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-          else
-            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
-          fi
+          # fail-closed: base に aqua 設定が無ければ job fail。
+          # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
+          git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
           aqua_version: v2.60.1
@@ -108,12 +102,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch origin "$BASE_REF" --depth=1
-          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
-             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
-            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-          else
-            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
-          fi
+          # fail-closed: base に aqua 設定が無ければ job fail。
+          # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
+          git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
           aqua_version: v2.60.1
@@ -140,12 +131,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch origin "$BASE_REF" --depth=1
-          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
-             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
-            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-          else
-            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
-          fi
+          # fail-closed: base に aqua 設定が無ければ job fail。
+          # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
+          git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
           aqua_version: v2.60.1
@@ -172,12 +160,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch origin "$BASE_REF" --depth=1
-          if git cat-file -e "FETCH_HEAD:aqua.yaml" 2>/dev/null \
-             && git cat-file -e "FETCH_HEAD:aqua-checksums.json" 2>/dev/null; then
-            git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-          else
-            echo "base branch has no complete aqua config yet (initial adoption); using PR head config"
-          fi
+          # fail-closed: base に aqua 設定が無ければ job fail。
+          # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
+          git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
           aqua_version: v2.60.1
