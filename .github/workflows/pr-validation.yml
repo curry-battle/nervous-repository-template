@@ -78,10 +78,10 @@ jobs:
       - run: bash scripts/check-hook-rev-sha.sh
 
   # --- aqua-checksums.json が aqua.yaml と整合しているか検証 ----------------------
-  # aqua.yaml の version を上げたが aqua-checksums.json を更新し忘れた PR を fail させる。
-  # security-audit.yml と違って base-branch overlay は要らない: ここで実行する
-  # `aqua update-checksum` は download + hash 計算しかせず binary を exec しないため、
-  # PR head の aqua 設定をそのまま検証してよい。
+  # aqua.yaml の version を上げたが aqua-checksums.json を更新し忘れた PR を fail させる
+  # 
+  # security-audit.yml と違って base-branch overlay は不要: PR head で実行する
+  # aqua update-checksum は download + hash 計算しかせず binary を exec しないため、 PR head の aqua 設定をそのまま検証してよい
   aqua-checksums:
     name: Verify aqua checksums are current
     runs-on: ubuntu-latest
@@ -102,8 +102,8 @@ jobs:
           git diff --exit-code aqua-checksums.json
 
   # --- pnpm の packageManager と aqua.yaml の version が一致しているか検証 -------
-  # aqua.yaml と examples/docker-node/package.json の packageManager は別 consumer
-  # に供するため両方持つが、ドリフトを許さない。
+  # aqua.yaml と examples/docker-node/package.json の 
+  # packageManager は別 consumer に供するため両方持つが、ドリフトを許さない。
   pnpm-aqua-sync:
     name: Verify pnpm packageManager == aqua.yaml
     runs-on: ubuntu-latest
