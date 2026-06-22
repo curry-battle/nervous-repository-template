@@ -1,0 +1,23 @@
+# dependency-audit（依存監査: cargo-deny / trivy / pnpm audit）
+
+- 参照: `security-audit.yml`(cargo-deny / trivy / pnpm-audit ジョブ)、`pr-validation.yml`(pnpm-aqua-sync ジョブ)、`.pre-commit-config.yaml`(cargo-deny / trivy / check-pnpm-aqua-sync hook)、`aqua.yaml`(cargo-deny / trivy / pnpm)、`scripts/check-pnpm-aqua-sync.sh`、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml`
+- 抜き出すもの: **監査したい言語のぶんだけ**（独立に選べる）:
+  - **Rust（cargo-deny）**: `security-audit.yml` の `cargo-deny` ジョブ + `.pre-commit-config.yaml` の cargo-deny hook + `aqua.yaml` の `EmbarkStudios/cargo-deny` 行 + `deny.toml`。
+  - **FS / コンテナ（trivy）**: `security-audit.yml` の `trivy` ジョブ + `.pre-commit-config.yaml` の trivy hook + `aqua.yaml` の `aquasecurity/trivy` 行。
+  - **npm（pnpm audit）**: `security-audit.yml` の `pnpm-audit` ジョブ + `aqua.yaml` の `pnpm/pnpm` 行 + `pr-validation.yml` の `pnpm-aqua-sync` ジョブ + `scripts/check-pnpm-aqua-sync.sh` + `.pre-commit-config.yaml` の check-pnpm-aqua-sync hook + `examples/docker-node/pnpm-workspace.yaml`。
+- AskUser:
+  - **監査する言語**（multiSelect）: Rust(cargo-deny) / npm(pnpm audit) / FS(trivy)
+  - **cargo-deny の licenses allowlist**（permissive のみ等）
+  - **trivy の severity 閾値**（`HIGH,CRITICAL` 等。緩いと低重大度で CI が flaky になる）
+  - **required check 化**するか
+- 生成（コピー禁止・対象環境で解決）:
+  - `aqua.yaml` に対象ツールを追加して `aqua update-checksum` で `aqua-checksums.json` を再生成する（version と checksum はここに集約）。
+  - `deny.toml` は `aqua exec -- cargo-deny init` をベースに、対象リポの実依存に合わせて `licenses` allowlist を調整。publish=false の自前 crate は `[licenses] private = { ignore = true }`。
+- 注意:
+  - **3 つとも「依存コードをビルド/実行しない」静的監査**（cargo-deny=cargo metadata / trivy=`fs`（`image` ではない）/ pnpm audit=install せず lockfile + advisory API）。CI で PR の依存を走らせない原則を保つ。
+  - **cargo-deny は 0.16 系不可**（現行 RUSTSEC の CVSS 4.0 を parse できず落ちる）→ **0.19 系以降**。
+  - **pnpm audit は脆弱性監査のみ**で cargo-deny の licenses / bans 相当は無い（非対称）。npm 側の広い守りは `pnpm-workspace.yaml`（cooldown / postinstall ブロック=`allowBuilds:{}` / `verifyDepsBeforeRun`）側に置く。
+  - **pnpm は aqua 管理の release tarball を使う**（corepack 不使用＝PR の `packageManager` に CI 実行の pnpm を差し替えさせない）。`aqua.yaml` の `pnpm/pnpm` と `examples/docker-node/package.json` の `packageManager` は別 consumer なので両方残るが、ドリフトは `check-pnpm-aqua-sync.sh` で検出する。
+- 検証: `aqua exec -- cargo-deny check` / `aqua exec -- trivy fs --scanners vuln,misconfig .` / `aqua exec -- pnpm audit --audit-level high` が通る（**負例**＝既知脆弱性・禁止ライセンス・禁止版で fail することも確認）／`bash scripts/check-pnpm-aqua-sync.sh` で版同期
+- GitHub 手動設定: 各 CI チェック（`Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)` / `Verify pnpm packageManager == aqua.yaml`）を `main` の Branch protection で required check 化（任意・運用次第）
+- 依存: `foundation`（prek hook 利用時）、`docker-hardening`（example を使うなら）
