@@ -93,4 +93,8 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 
 ## ドキュメント
 
-- [docs/design.md](./docs/design.md)：思想、仕組み、type 語彙、リリースの流れ、サプライチェーン対策、運用ルール
+3 層構成。深いほど具体的になる。
+
+- [docs/design.md](./docs/design.md)：**設計の背景**：思想、type 語彙、リリースの流れ、サプライチェーン対策、運用ルール
+- [docs/adoption-guide.md](./docs/adoption-guide.md)：**LLM 向け移植プレイブック (index)**：モジュール選択 → 設定値 AskUser → 適用の 4 ステップ
+- [docs/adoption/](./docs/adoption/)：**モジュール詳細**：14 モジュール各々の「参照 / 抜き出すもの / AskUser / 生成 / 注意 / 検証 / GitHub 手動設定 / 依存」
