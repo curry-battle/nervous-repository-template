@@ -1,11 +1,6 @@
 {
   "checksums": [
     {
-      "id": "github_release/github.com/EmbarkStudios/cargo-deny/0.19.9/cargo-deny-0.19.9-aarch64-apple-darwin.tar.gz",
-      "checksum": "BE6FD555E910AC360E25CBEF4F16EAD47D87D2545FA07AA27223EF0F9AF1A02C",
-      "algorithm": "sha256"
-    },
-    {
       "id": "github_release/github.com/EmbarkStudios/cargo-deny/0.19.9/cargo-deny-0.19.9-x86_64-unknown-linux-musl.tar.gz",
       "checksum": "F1F8EEDC2A3AC297C540873F93785D4104B102C0079506B2A6B3221B7EC956AF",
       "algorithm": "sha256"
