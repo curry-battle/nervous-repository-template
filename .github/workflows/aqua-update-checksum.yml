@@ -5,13 +5,15 @@ name: Update aqua checksums
 # 補完は 同じ PR branch に push する形でなされる
 
 
-# 注: security-audit.yml は base branch の aqua.yaml を overlay して
-#     PR 側のツール差し替えを無効化するが、この workflow は逆に PR head の
-#     aqua.yaml を直接読む (新 version の release asset を取得して hash を計算するため)。
+# 注: security-audit.yml は base branch の aqua.yaml を overlay して PR 側のツール差し替えを
+#     無効化するが、この workflow は逆に PR head の aqua.yaml を直接読む (新 version の release
+#     asset を取得して hash を計算するため)。
 #
-#     悪意ある PR が aqua.yaml に悪性 package を仕込めば、CI はその release を download する。
-#     しかし update-checksum-action は download + hash 計算のみで binary を exec しないため、
-#     悪性 bytes は単に aqua-checksums.json に hash として記録されるだけで、任意コード実行には至らない。
+#     第一の防壁は job 冒頭の `if: github.actor == 'renovate[bot]'` で、人手 PR や悪意ある PR では
+#     job 自体が起動しない。第二の防壁として、万が一 Renovate 経由 (Renovate 側の compromise)
+#     で悪性 package を踏んだとしても、update-checksum-action は download + hash 計算のみで
+#     binary を exec しないため、悪性 bytes は単に aqua-checksums.json に hash として記録される
+#     だけで任意コード実行には至らない (defense in depth)。
 
 on:
   pull_request:

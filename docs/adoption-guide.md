@@ -221,7 +221,7 @@
 | 全 workflow | `actionlint .github/workflows/*.yml` | actionlint を入手 |
 | D | `aqua exec -- pinact run --check`（未 pin が無いこと） | 0（aqua）+ pinact |
 | E | `bash scripts/check-hook-rev-sha.sh` | スクリプトを移植済み |
-| F | `aqua update-checksum --check`（aqua.yaml と aqua-checksums.json の整合）／`aqua install` が `supported_envs` 全てで通ること | 0（aqua）+ `aqua-checksums.json` コミット済み |
+| F | `aqua update-checksum -prune` 後 `git diff --exit-code aqua-checksums.json`（aqua v2 に `--check` は無い。整合と未使用 checksum を diff で検出）／`aqua install` が `supported_envs` 全てで通ること | 0（aqua）+ `aqua-checksums.json` コミット済み |
 | H | `aqua exec -- ghalint run`（違反なら既存 workflow を修正） | 0 + D 済み（未 pin で落ちる） |
 | I | `aqua exec -- gitleaks dir .`（誤検知確認） | 0 + gitleaks |
 | J | `bash scripts/check-docker-digests.sh` / `docker build` + 起動 + healthcheck / `docker compose config -q` | Dockerfile・compose を移植済み |

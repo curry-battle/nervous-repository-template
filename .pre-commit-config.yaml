@@ -8,7 +8,9 @@
 # （pre-commit を使う場合も同じ id・stages でそのまま動く）
 
 repos:
-  # Dockerfile linter（mise の hadolint バイナリを使用＝docker 不要）
+  # Dockerfile linter (remote hook が rev SHA 固定で hadolint バイナリを取得＝docker 不要)
+  # 注: hadolint は aqua にも mise にも載せず、CI は hadolint/hadolint-action、ローカルは
+  # ここの remote hook で取得する経路に統一している (aqua + remote hook の二重管理を避けるため)。
   - repo: https://github.com/hadolint/hadolint
     rev: 57e1618d78fd469a92c1e584e8c9313024656623  # v2.14.0
     hooks:

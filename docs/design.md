@@ -60,7 +60,7 @@
 
 - **Rust 依存の監査（cargo-deny）**：`Audit Rust deps (cargo-deny)` ジョブ（固定版を checksum 検証して実行）＋ pre-commit hook。`deny.toml` の advisories（RUSTSEC・unmaintained・yanked）／ licenses（permissive のみ allowlist）／ bans（複数版・wildcard）／ sources（crates.io のみ）を検査する。**`cargo metadata` のみ**を使い build script を走らせない。
 - **ファイルシステムスキャン（trivy）**：`Scan filesystem (trivy)` ジョブ（固定版を checksum 検証 → `trivy fs --scanners vuln,misconfig .`）＋ pre-commit hook。lockfile / 設定ファイルの**静的スキャン**（`trivy image` ではないのでイメージのビルド・実行は不要）。
-- **npm 依存の監査（pnpm audit）**：`Audit npm deps (pnpm audit)` ジョブ。pnpm は **pin + sha256 検証した standalone リリース tarball** から導入し（corepack は使わない＝PR の `packageManager` に CI 実行の pnpm を差し替えさせない。ghalint / gitleaks / cargo-deny / trivy と同じ pin+checksum パターン）、`examples/docker-node` で `pnpm audit --audit-level high`。**install せず** lockfile を読んで registry の advisory API を問い合わせるだけ。
+- **npm 依存の監査（pnpm audit）**：`Audit npm deps (pnpm audit)` ジョブ。pnpm は他の監査ツールと同じく aqua 管理（`aqua.yaml` + `aqua-checksums.json` で version と checksum を固定。corepack は使わない＝PR の `packageManager` に CI 実行の pnpm を差し替えさせない）、`examples/docker-node` で `pnpm audit --audit-level high`。**install せず** lockfile を読んで registry の advisory API を問い合わせるだけ。
 - **npm 側と Rust 側は守りの置き場所が違う（意図的な非対称）**：`pnpm audit` は**脆弱性（advisory）監査のみ**で、cargo-deny の licenses / bans 相当は持たない。npm 側の広い守りは代わりに**install 時**の `examples/docker-node/pnpm-workspace.yaml` に置いている（cooldown=`minimumReleaseAge`／非標準サブ依存ブロック=`blockExoticSubdeps`（sources 相当を部分カバー）／postinstall 等ライフサイクルスクリプトのブロック=`allowBuilds:{}`／lockfile 整合の fail-closed 検証=`verifyDepsBeforeRun:error`）。一方 Rust 側は cargo がライフサイクルスクリプトの概念が弱く install 時ハードニングが薄いぶん、**audit 時**の `deny.toml` で licenses（許可ライセンス外を CI fail）／ bans（複数版・wildcard）を強制する。結果として **npm 側にはライセンス強制と重複版 bans が無い**（必要なら license-checker 系の CI ステップや `pnpm dedupe --check` を足せる）。`vulnerabilities` は両者で対等。
 - ghalint / gitleaks / cargo-deny / trivy / pnpm の 5 監査ツールと、ローカル開発用の prek / pinact を含めた計 7 ツールを aqua で version と checksum を統一管理する（`aqua.yaml` + `aqua-checksums.json` が唯一の SoT）。CI は `aquaproj/aqua-installer` で aqua 自身を SHA pin した上で `aqua install` → `aqua exec -- <tool>` する。Renovate の `aqua-renovate-config` preset が version 追従、`aquaproj/update-checksum-action` が checksum 再生成を担うため、手動 sha256 更新は発生しない。**hadolint は aqua の対象外**：CI は `hadolint/hadolint-action`（SHA pin）、ローカルは `.pre-commit-config.yaml` の remote hook（`rev` SHA pin）で取得・実行する。aqua に載せると 2 経路で管理が分裂するため意図的に除外する。
 - **pnpm の二重化（packageManager と aqua.yaml）**: pnpm は CI 監査用 (`aqua.yaml`) と Node example 自身のパッケージマネージャ宣言 (`examples/docker-node/package.json` の `packageManager`) の 2 系統に残る (別 consumer なので両方必要)。両者のドリフトは `scripts/check-pnpm-aqua-sync.sh` (CI ジョブ `pnpm-aqua-sync` + pre-commit hook) で検出して fail させる。
@@ -79,7 +79,7 @@
   |---|---|---|
   | GitHub Actions (`uses:`) | pinact / Renovate(`pinGitHubActionDigests`) | `pin-actions`（pinact-action `fix:false`） |
   | pre-commit hook (`rev`) | 手動 / Renovate | `pin-hooks`（`rev` が 40 桁 SHA か検証） |
-  | aqua 管理 CLI ツール | `aqua-checksums.json`（`aqua update-checksum` で生成） | `aqua-checksums`（`aqua update-checksum --check` で aqua.yaml との整合検証）／security-audit の各 job は base-branch overlay で信頼済み aqua 設定を実行 |
+  | aqua 管理 CLI ツール | `aqua-checksums.json`（`aqua update-checksum` で生成） | `aqua-checksums`（aqua v2 に `--check` は無いため `aqua update-checksum -prune` 後 `git diff --exit-code aqua-checksums.json` で aqua.yaml との整合と未使用 checksum を検出）／security-audit の各 job は base-branch overlay で信頼済み aqua 設定を実行 |
   | aqua 自身の bootstrap | `mise lock` → `mise.lock`（aqua 1 エントリのみ） | （CI では aqua-installer で別経路 pin。ローカルは `mise install` の locked 検証） |
   | Docker ベースイメージ (`FROM`) | Renovate(`docker:pinDigests`) | `docker`（全 `FROM` が `@sha256:` か検証 + hadolint(recursive) + compose 構文） |
 
@@ -90,6 +90,7 @@
 - **overlay/installer を local composite action に括り出さない理由**：overlay は『PR head の aqua 設定を信用しない』ためのもの。そのロジックを PR head から `uses:` で読まれる local action に置くと、PR がその action ファイルを書換えるだけで overlay を no-op 化できる（trust boundary が壊れる）。よって `security-audit.yml` の 5 ジョブに inline で重複させ、同期コメントで保守する。
 - **`CODEOWNERS` で aqua 設定 / CI workflow / local action 変更を maintainer レビュー必須に**：`aqua.yaml` / `aqua-checksums.json` / `.github/workflows/` / `.github/actions/` を `.github/CODEOWNERS` 対象にする。default branch の branch protection で "Require review from Code Owners" を ON にしないと無効になる点に注意（hard 条件）。
 - **mise の lockfile（bootstrap 専用）**：`mise.toml` は aqua バイナリ 1 本のみを宣言し、`lockfile=true` / `locked=true` で `mise.lock` の checksum 検証を維持する。CLI ツールの実体は `aqua.yaml` + `aqua-checksums.json` に集約済み。
+- **aqua 自身のバージョン更新は手動同期**：aqua のバージョン番号は `mise.toml` (`aqua = "x.y.z"`) と各 workflow の `aqua-installer` step (`aqua_version: vx.y.z`) の 2 箇所に存在する。aqua-renovate-config は `aqua.yaml` の packages を追従する preset で、aqua バイナリ自身の版には触らない。よって aqua のメジャー/マイナー bump は両所を手動で揃える運用（`mise install` でローカル整合 → CI でも同じ版が使えるよう workflow を一括置換）。
 
 ### 手動での補強（推奨）
 
