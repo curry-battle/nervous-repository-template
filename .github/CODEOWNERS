@@ -1,0 +1,25 @@
+# CODEOWNERS — maintainer レビューを必須化したい変更先を列挙する。
+# 注: CODEOWNERS は default branch の branch protection で
+# "Require review from Code Owners" を ON にしないと無効 (単なる通知になる)。
+#
+# 守る対象:
+#   - aqua 設定 (ツール差し替え経路)。base-branch overlay と組み合わせて二重防御を構成する。
+#   - CI workflow と local action (overlay/guard 自体を改変する PR を maintainer ゲートにかける)。
+#     pull_request の CI は PR head の workflow / local action 定義で走るため、これらの改変は
+#     authoritative ではなく advisory。merge 前に必ず maintainer が見る運用にする。
+#   - guard / provisioning の実装ファイル (check スクリプト、Renovate / pre-commit / mise の
+#     設定一式)。これらは CI gate の挙動を決めるため、編集は overlay と同じ扱いで maintainer
+#     レビュー必須にする。
+#
+# owner はリポオーナの個人ハンドル。team owner に切り替えるなら @org/team へ置換する。
+
+aqua.yaml                    @curry-battle
+aqua-checksums.json          @curry-battle
+/.github/workflows/          @curry-battle
+/.github/actions/            @curry-battle
+/scripts/check-*.sh          @curry-battle
+/scripts/test-check-*.sh     @curry-battle
+.pre-commit-config.yaml      @curry-battle
+renovate.json5               @curry-battle
+mise.toml                    @curry-battle
+mise.lock                    @curry-battle

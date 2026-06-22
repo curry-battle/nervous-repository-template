@@ -6,9 +6,9 @@
 
 - 参照は **ファイル単位**で示す（行番号は時間で陳腐化するので書かない）。実体は各ファイルを読むこと。
 - 設定の中身（type 語彙や cooldown 日数など）は**必ず AskUser で決めてから**書く。デフォルトを黙って流用しない。
-- lockfile（`mise.lock` / `pnpm-lock.yaml`）や `mise.lock` の checksum、action の SHA は**コピーせず対象環境で生成/解決し直す**（生成コマンドは各モジュール節に記載）。
-- **共有ファイルは丸ごとコピーしない**。`pr-validation.yml` / `.pre-commit-config.yaml` / `mise.toml` / `renovate.json5` は複数モジュールが同居する。選んだモジュールに対応する **job / hook / tool / 設定ブロックだけを抜き出して**マージする（各節の「抜き出すもの」を見る）。無関係な job を持ち込むと、未導入のスクリプトやツールを参照して壊れる。
-- **共通基盤（下表の `0`）を最初に置く**。ローカルフック系（A/D/E/H/I/J/K/M）は prek に、ツール固定系（D/F/H/I/J/M）は mise に乗る（M の trivy は mise 管理外＝後述）。基盤を用意してから各モジュールの hook / tool を足す。
+- lockfile（`mise.lock` / `pnpm-lock.yaml` / `aqua-checksums.json`）や action の SHA は**コピーせず対象環境で生成/解決し直す**（生成コマンドは各モジュール節に記載）。
+- **共有ファイルは丸ごとコピーしない**。`pr-validation.yml` / `security-audit.yml` / `.pre-commit-config.yaml` / `mise.toml` / `aqua.yaml` / `renovate.json5` は複数モジュールが同居する。選んだモジュールに対応する **job / hook / tool / 設定ブロックだけを抜き出して**マージする（各節の「抜き出すもの」を見る）。無関係な job を持ち込むと、未導入のスクリプトやツールを参照して壊れる。
+- **共通基盤（下表の `0`）を最初に置く**。ローカルフック系（A/D/E/H/I/J/K/M）は prek に、ツール固定系（D/F/H/I/J/M）は aqua（CI/ローカル共通）に乗る（mise は aqua バイナリの bootstrap のみ）。基盤を用意してから各モジュールの hook / tool を足す。
 - 設計の背景は [design.md](./design.md) を参照。
 
 ---
@@ -56,37 +56,38 @@
 
 | 区分 | ID | モジュール | 主な参照ファイル | 依存 |
 |---|---|---|---|---|
-| 基盤 | 0 | 共通基盤（prek + mise） | `.pre-commit-config.yaml`、`mise.toml` | — |
-| 開発フロー | A | commit / branch の Conventional 強制 | `commit-check.toml`、`.pre-commit-config.yaml`、`mise.toml`（prek の commit-msg / pre-push hook のみ。CI では検証しない） | 0 |
+| 基盤 | 0 | 共通基盤（prek + aqua、mise は aqua bootstrap 用） | `.pre-commit-config.yaml`、`aqua.yaml`、`aqua-checksums.json`、`mise.toml` | — |
+| 開発フロー | A | commit / branch の Conventional 強制 | `commit-check.toml`、`.pre-commit-config.yaml`（prek の commit-msg / pre-push hook のみ。CI では検証しない） | 0 |
 | 開発フロー | B | PR title の Conventional 強制 | `.github/workflows/pr-validation.yml`(pr-title) | type語彙 |
 | 開発フロー | C | リリース自動化 | `.github/release-drafter.yml`、`.github/workflows/release-drafter.yml`、`create-labels.sh` | A/B(語彙) |
-| セキュリティ・環境 | D | GitHub Actions の SHA 固定 | 各 workflow の `uses:`、`pin-actions`ジョブ、`.pre-commit-config.yaml`(pinact)、`mise.toml`(pinact) | 0（ローカル hook 利用時） |
+| セキュリティ・環境 | D | GitHub Actions の SHA 固定 | 各 workflow の `uses:`、`pin-actions`ジョブ、`.pre-commit-config.yaml`(pinact)、`aqua.yaml`(pinact) | 0（ローカル hook 利用時） |
 | セキュリティ・環境 | E | pre-commit hook rev の SHA 固定 | `scripts/check-hook-rev-sha.sh`、`pin-hooks`ジョブ、`.pre-commit-config.yaml` | 0（`.pre-commit-config.yaml` が前提） |
-| セキュリティ・環境 | F | mise ツールの checksum 固定 | `mise.toml`(`[settings]`)、`mise.lock`、`scripts/check-mise-locked.sh`、`mise-locked`ジョブ | 0（mise） |
+| セキュリティ・環境 | F | aqua ツールの checksum 固定 | `aqua.yaml`、`aqua-checksums.json`、`aqua-checksums`ジョブ、`.github/workflows/aqua-update-checksum.yml`、`.github/CODEOWNERS` | 0（aqua） |
 | セキュリティ・環境 | G | 依存更新（Renovate） | `renovate.json5` | 更新対象が存在すること |
-| セキュリティ・環境 | H | workflow セキュリティ lint（ghalint） | `gha-lint`ジョブ、`.pre-commit-config.yaml`、`mise.toml` | 0、D 推奨（未 pin と衝突） |
-| セキュリティ・環境 | I | secret スキャン（gitleaks） | `gitleaks`ジョブ、`.pre-commit-config.yaml`、`mise.toml` | 0 |
+| セキュリティ・環境 | H | workflow セキュリティ lint（ghalint） | `security-audit.yml`(gha-lint)、`.pre-commit-config.yaml`、`aqua.yaml` | 0、D 推奨（未 pin と衝突） |
+| セキュリティ・環境 | I | secret スキャン（gitleaks） | `security-audit.yml`(gitleaks)、`.pre-commit-config.yaml`、`aqua.yaml` | 0 |
 | セキュリティ・環境 | J | Docker ベストプラクティス + digest 固定 | `examples/docker-node/*`・`examples/docker-rust/*`、`docker`ジョブ、`scripts/check-docker-digests.sh`、`.pre-commit-config.yaml`(pin-docker)、`renovate.json5`(`docker:pinDigests`) | 0（prek hook 利用時） |
-| セキュリティ・環境 | M | 依存監査（cargo-deny / trivy / pnpm audit） | `Audit Rust deps (cargo-deny)`・`Scan filesystem (trivy)`・`Audit npm deps (pnpm audit)`ジョブ、`.pre-commit-config.yaml`(cargo-deny / trivy hook)、`mise.toml`(cargo-deny)、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml` | 0（prek hook 利用時）、J（example を使うなら） |
+| セキュリティ・環境 | M | 依存監査（cargo-deny / trivy / pnpm audit） | `security-audit.yml`(cargo-deny / trivy / pnpm-audit)、`pnpm-aqua-sync`ジョブ、`.pre-commit-config.yaml`(cargo-deny / trivy / check-pnpm-aqua-sync hook)、`aqua.yaml`(cargo-deny / trivy / pnpm)、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml`、`scripts/check-pnpm-aqua-sync.sh` | 0（prek hook 利用時）、J（example を使うなら） |
 | 開発フロー | K | type 語彙の自己テスト | `scripts/check-vocab-sync.sh`、`.pre-commit-config.yaml`（pre-commit hook のみ。当該ファイル変更時に発火） | 0 + A/B/C |
 | リポ整備 | L | リポ整備 | `.github/ISSUE_TEMPLATE/*`、`.github/pull_request_template.md`、`LICENSE`、`.gitignore` | — |
 
-> 基盤（`0`）：prek が A/D/E/H/I/J/K/M のローカルフックを動かし、mise が D/F/H/I/J/M の CLI を固定・checksum 検証する（M の cargo-deny は mise、trivy は workflow 側 pin）。最初に `.pre-commit-config.yaml` と `mise.toml` の土台を置き、各モジュールの hook / tool をそこへ足していく。CI だけで完結するモジュール（B/C/G、および D/H/I/J を「CI ジョブのみ」で使う場合）は基盤なしでも動くが、ローカルフックを使うなら基盤が要る。
+> 基盤（`0`）：prek が A/D/E/H/I/J/K/M のローカルフックを動かし、aqua が D/F/H/I/J/M の CLI を固定・checksum 検証する（CI もローカルも同じ `aqua.yaml`/`aqua-checksums.json` を参照）。mise は aqua バイナリ自身を bootstrap する用途のみ。最初に `.pre-commit-config.yaml` / `aqua.yaml` / `aqua-checksums.json` / `mise.toml` の土台を置き、各モジュールの hook / tool をそこへ足していく。CI だけで完結するモジュール（B/C/G、および D/H/I/J を「CI ジョブのみ」で使う場合）は基盤なしでも動くが、ローカルフックを使うなら基盤が要る。
 
-> **抜き出し方の原則**：`pr-validation.yml` は job 単位（`pr-title` / `pin-actions` / `pin-hooks` / `mise-locked` / `docker` / `gha-lint` / `gitleaks` / `cargo-deny` / `trivy` / `pnpm-audit`）で分離できる。選んだモジュールの job だけを対象リポの workflow にコピーする。`.pre-commit-config.yaml` は hook の `id` 単位、`mise.toml` は `[tools]` の行単位、`renovate.json5` は manager / 設定ブロック単位で抜く。各 job / hook が参照する `scripts/check-*.sh` も同時に持ち込む。
+> **抜き出し方の原則**：`pr-validation.yml` は job 単位（`pr-title` / `pin-actions` / `pin-hooks` / `aqua-checksums` / `pnpm-aqua-sync` / `docker`）、`security-audit.yml` は aqua-exec ジョブ単位（`gha-lint` / `gitleaks` / `cargo-deny` / `trivy` / `pnpm-audit`）で分離できる。選んだモジュールの job だけを対象リポの workflow にコピーする。`.pre-commit-config.yaml` は hook の `id` 単位、`aqua.yaml` は `packages[]` の行単位、`mise.toml` は `[tools]` の行単位、`renovate.json5` は manager / 設定ブロック単位で抜く。各 job / hook が参照する `scripts/check-*.sh` も同時に持ち込む。
 
 ---
 
 ## モジュール別：AskUser する決定と注意
 
-### 0. 共通基盤（prek + mise）
-- 参照: `.pre-commit-config.yaml`、`mise.toml`、`mise.lock`
-- 抜き出すもの: `.pre-commit-config.yaml` の骨組み（`repos:` と各モジュールの hook を足す器）、`mise.toml` の `[tools]`（各モジュールが使う CLI）と `[settings]`。
+### 0. 共通基盤（prek + aqua、mise は aqua bootstrap 用）
+- 参照: `.pre-commit-config.yaml`、`aqua.yaml`、`aqua-checksums.json`、`mise.toml`、`mise.lock`
+- 抜き出すもの: `.pre-commit-config.yaml` の骨組み（`repos:` と各モジュールの hook を足す器）、`aqua.yaml` の `packages[]`（各モジュールが使う CLI）と `registries` / `checksum` ブロック、`mise.toml`（aqua バイナリの 1 エントリのみ）と `[settings]`。
 - 手順（bootstrap 順序に注意）:
-  - `mise.toml` の `[tools]` に必要ツールを宣言する。このとき `[settings] locked` は**省略 or `false`** にしておく（`mise.lock` が無い状態で `locked=true` だと `mise install` が失敗する）。
-  - `mise install` → `mise lock --platform linux-x64,macos-arm64` で `mise.lock` を生成してコミット → そのうえで `[settings]` に `lockfile=true` / `locked=true` を有効化する（= F）。
-  - `mise exec -- prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push` で hook を有効化。**pre-commit を必ず含める**（pinact / ghalint / gitleaks / hadolint / vocab は pre-commit ステージ。これを外すと D/H/I/J/K のローカルフックが発火しない）。
-- 注意: 基盤なしで「CI ジョブのみ」運用も可能だが、その場合ローカルフックは付かない（commit 前の早期検知が無くなる）。
+  - `mise.toml` に aqua 1 行を宣言する（CLI ツールは `aqua.yaml` 側に列挙する）。このとき `[settings] locked` は**省略 or `false`** にしておく（`mise.lock` が無い状態で `locked=true` だと `mise install` が失敗する）。
+  - `mise install` → `mise lock --platform linux-x64,macos-arm64` で `mise.lock` を生成してコミット → そのうえで `[settings]` に `lockfile=true` / `locked=true` を有効化する。
+  - `aqua.yaml` を作り、`aqua update-checksum` で `aqua-checksums.json` を生成・コミット（**手書き禁止**）。`aqua install` が `linux/amd64` と `darwin/arm64` の両方で通ることを確認（= F）。
+  - `mise exec -- prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push` で hook を有効化。**pre-commit を必ず含める**（pinact / ghalint / gitleaks / hadolint / vocab / check-pnpm-aqua-sync は pre-commit ステージ。これを外すと D/H/I/J/K/M のローカルフックが発火しない）。
+- 注意: 基盤なしで「CI ジョブのみ」運用も可能だが、その場合ローカルフックは付かない（commit 前の早期検知が無くなる）。aqua 未 bootstrap な開発機では各ローカル CLI hook は `command -v aqua` で skip メッセージを出して commit はブロックしない（CI が強制する）。
 
 ### A. commit / branch の Conventional 強制
 - 参照: `commit-check.toml`、`.pre-commit-config.yaml`(commit-check リポフック + `check-hook-rev-sha`)、`mise.toml`(prek)
@@ -133,13 +134,16 @@
 - 生成: `.pre-commit-config.yaml` の各 `rev:` を full SHA に固定する。`mise exec -- prek auto-update --freeze` でタグ→SHA に凍結できる（pre-commit を使う場合は `pre-commit autoupdate --freeze`。サブコマンド名が prek=`auto-update` / pre-commit=`autoupdate` で異なる点に注意）。
 - AskUser: 特になし（採用 or 不採用）。Renovate(G) があれば更新は自動。
 
-### F. mise ツールの checksum 固定
-- 参照: `mise.toml`(`[settings] lockfile/locked`)、`mise.lock`、`scripts/check-mise-locked.sh`、`mise-locked`ジョブ
-- 抜き出すもの: `pr-validation.yml` の `mise-locked` ジョブ + `scripts/check-mise-locked.sh` + `mise.toml` の `[settings]`（`lockfile` / `locked`）+ `mise.lock`。
+### F. aqua ツールの checksum 固定
+- 参照: `aqua.yaml`、`aqua-checksums.json`、`.github/workflows/pr-validation.yml`(aqua-checksums ジョブ)、`.github/workflows/aqua-update-checksum.yml`、`.github/CODEOWNERS`、`mise.toml`(aqua bootstrap)
+- 抜き出すもの: `aqua.yaml` の骨組み（`registries` + `checksum.require_checksum: true` + `supported_envs` + 必要な `packages`）、`pr-validation.yml` の `aqua-checksums` ジョブ、`aqua-update-checksum.yml`（Renovate との連携が要るなら）、`.github/CODEOWNERS`（aqua 設定変更の maintainer ゲート）、`mise.toml` の aqua 1 行。
 - AskUser:
-  - 管理するツール一覧
-  - lock するプラットフォーム（CI=linux-x64、開発機=macos-arm64 等）
-- 注意: **`mise.lock` はコピーせず `mise lock --platform ...` で生成**してコミット。`locked=true` は lockfile コミット後に有効。CI 検証は `mise install` ではなく**静的検証**にする（PR の任意コード実行を避ける）。
+  - 管理するツール一覧（`aqua g <pkg>` で aqua-registry に release-asset package として存在することを事前確認する）。hadolint は除外する方針（aqua に載せず CI=hadolint-action / ローカル=remote pre-commit hook の従来経路を維持。詳細は design.md「依存の監査」節）
+  - サポートするプラットフォーム（`supported_envs`、CI=`linux/amd64` + 開発機=`darwin/arm64` 等）
+  - CODEOWNERS の owner（maintainer の @user / @org/team）
+- 生成: `aqua update-checksum` で `aqua-checksums.json` を生成（**手書き禁止**）。`aqua install` が全 `supported_envs` で通ることを確認。
+- 注意: **`require_checksum: true`** を必ず付ける（checksum 不在で install を fail させる fail-closed）。**`aqua-checksums.json` はコピーせず対象環境で生成**（id がパッケージ・version・asset・platform を符号化しているため）。CODEOWNERS は default branch の branch protection で "Require review from Code Owners" を ON にしないと無効。aqua-exec ジョブは `security-audit.yml` 側で base-branch overlay と push:main 検証を組む（H/I/M を入れるならセットで）。
+- 注意（mise→aqua 移行時）: 旧 required check `Verify mise tools are locked` が branch protection に残ったまま F に切り替えると、存在しない check 待ちで PR が永遠に merge 不能になる。aqua 化と同 PR で required check リストを `Verify aqua checksums are current` に差し替え、旧 mise-locked check を必ず外す。
 
 ### G. 依存更新（Renovate）
 - 参照: `renovate.json5`
@@ -151,16 +155,16 @@
 - 注意: Dependabot と同 ecosystem で併走させない。pre-commit / mise / docker manager を有効化。`@types/node` 等は runtime メジャーに合わせる `allowedVersions` を検討。
 
 ### H. workflow セキュリティ lint（ghalint）
-- 参照: `gha-lint`ジョブ、`.pre-commit-config.yaml`、`mise.toml`
-- 抜き出すもの: `pr-validation.yml` の `gha-lint` ジョブ + `.pre-commit-config.yaml` の ghalint ローカル hook + `mise.toml` の `ghalint` 行。
+- 参照: `security-audit.yml`(gha-lint ジョブ)、`.pre-commit-config.yaml`、`aqua.yaml`
+- 抜き出すもの: `security-audit.yml` の `gha-lint` ジョブ（base-branch overlay step 込み）+ `.pre-commit-config.yaml` の ghalint ローカル hook + `aqua.yaml` の `suzuki-shunsuke/ghalint` 行。
 - AskUser: 特になし。ghalint のポリシー（`permissions` 最小化、`timeout-minutes` 必須、SHA 固定）に合わせて**既存 workflow の修正が必要**になる点を伝える。
-- 注意: SHA 固定を要求するため、**未 pin の action が残っていると落ちる**（D を先に適用するか、対象 workflow を pin する）。CI は **固定版を checksum 検証して実行**（mise-action 等で PR 設定を信頼しない）。
+- 注意: SHA 固定を要求するため、**未 pin の action が残っていると落ちる**（D を先に適用するか、対象 workflow を pin する）。CI は **aqua-installer で aqua 自身を SHA pin し、`aqua exec -- ghalint run` を実行**（PR の aqua 設定差し替えは base-branch overlay でブロック）。
 
 ### I. secret スキャン（gitleaks）
-- 参照: `gitleaks`ジョブ、`.pre-commit-config.yaml`、`mise.toml`
-- 抜き出すもの: `pr-validation.yml` の `gitleaks` ジョブ + `.pre-commit-config.yaml` の gitleaks ローカル hook + `mise.toml` の `gitleaks` 行。
+- 参照: `security-audit.yml`(gitleaks ジョブ)、`.pre-commit-config.yaml`、`aqua.yaml`
+- 抜き出すもの: `security-audit.yml` の `gitleaks` ジョブ（base-branch overlay step 込み）+ `.pre-commit-config.yaml` の gitleaks ローカル hook + `aqua.yaml` の `gitleaks/gitleaks` 行。
 - AskUser: `.gitleaks.toml`(allowlist) を使うか。
-- 注意: 導入時に **一度 `mise exec -- gitleaks dir .` を実行して誤検知を確認**（lockfile のハッシュ等）。誤検知が出たら allowlist を作る。
+- 注意: 導入時に **一度 `aqua exec -- gitleaks dir .` を実行して誤検知を確認**（lockfile のハッシュ等）。誤検知が出たら allowlist を作る。
 
 ### J. Docker ベストプラクティス + digest 固定
 - 参照: `examples/docker-node/*`・`examples/docker-rust/*`(サンプル)、`docker`ジョブ、`scripts/check-docker-digests.sh`、`.pre-commit-config.yaml`(pin-docker)、`renovate.json5`(`docker:pinDigests`)
@@ -174,13 +178,13 @@
 - 注意: hadolint の lint と digest 検証は対象リポの Dockerfile 構成に合わせてパスを調整する。監査ジョブ（M）との対応は言語別: `docker-node` は pnpm audit、`docker-rust` は cargo-deny（`deny.toml`）。trivy（fs スキャン）は言語非依存で両方に効く。いずれも依存をビルド/実行しない静的監査。
 
 ### M. 依存監査（cargo-deny / trivy / pnpm audit）
-- 参照: `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`ジョブ、`.pre-commit-config.yaml`(cargo-deny / trivy hook)、`mise.toml`(cargo-deny)、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml`
+- 参照: `security-audit.yml`(cargo-deny / trivy / pnpm-audit ジョブ)、`pr-validation.yml`(pnpm-aqua-sync ジョブ)、`.pre-commit-config.yaml`(cargo-deny / trivy / check-pnpm-aqua-sync hook)、`aqua.yaml`(cargo-deny / trivy / pnpm)、`scripts/check-pnpm-aqua-sync.sh`、`examples/docker-rust/deny.toml`、`examples/docker-node/pnpm-workspace.yaml`
 - 抜き出すもの: **監査したい言語のぶんだけ**（独立に選べる）:
-  - **Rust（cargo-deny）**: `cargo-deny` ジョブ + `.pre-commit-config.yaml` の cargo-deny hook + `mise.toml` の `aqua:EmbarkStudios/cargo-deny` 行 + `deny.toml`。
-  - **FS / コンテナ（trivy）**: `trivy` ジョブ + `.pre-commit-config.yaml` の trivy hook（trivy は **mise 管理外**なので `mise.toml` には足さない）。
-  - **npm（pnpm audit）**: `pnpm-audit` ジョブ + `examples/docker-node/pnpm-workspace.yaml`（install 時のサプライチェーン設定）。
+  - **Rust（cargo-deny）**: `security-audit.yml` の `cargo-deny` ジョブ + `.pre-commit-config.yaml` の cargo-deny hook + `aqua.yaml` の `EmbarkStudios/cargo-deny` 行 + `deny.toml`。
+  - **FS / コンテナ（trivy）**: `security-audit.yml` の `trivy` ジョブ + `.pre-commit-config.yaml` の trivy hook + `aqua.yaml` の `aquasecurity/trivy` 行。
+  - **npm（pnpm audit）**: `security-audit.yml` の `pnpm-audit` ジョブ + `aqua.yaml` の `pnpm/pnpm` 行 + `pr-validation.yml` の `pnpm-aqua-sync` ジョブ + `scripts/check-pnpm-aqua-sync.sh` + `.pre-commit-config.yaml` の check-pnpm-aqua-sync hook + `examples/docker-node/pnpm-workspace.yaml`。
 - 生成（コピー禁止・対象環境で解決）:
-  - workflow の `*_VERSION` / `*_SHA256`（cargo-deny / trivy / pnpm）は、各リリースの公式 checksum を対象環境で取得して埋める（ghalint / gitleaks と同じ download + sha256 パターン）。**cargo-deny の sha256 は `mise.lock` の linux-x64 と一致**させる。trivy は公式 `checksums.txt` から。
+  - `aqua.yaml` に対象ツールを追加して `aqua update-checksum` で `aqua-checksums.json` を再生成する（version と checksum はここに集約）。
   - `deny.toml` は `cargo deny init` をベースに、対象リポの実依存に合わせて `licenses` allowlist を調整。publish=false の自前 crate は `[licenses] private = { ignore = true }`。
 - AskUser:
   - **監査する言語**（multiSelect）: Rust(cargo-deny) / npm(pnpm audit) / FS(trivy)
@@ -190,10 +194,8 @@
 - 注意:
   - **3 つとも「依存コードをビルド/実行しない」静的監査**（cargo-deny=cargo metadata / trivy=`fs`（`image` ではない）/ pnpm audit=install せず lockfile + advisory API）。CI で PR の依存を走らせない原則を保つ。
   - **cargo-deny は 0.16 系不可**（現行 RUSTSEC の CVSS 4.0 を parse できず落ちる）→ **0.19 系以降**。
-  - **trivy は mise 管理外**：github backend なら checksum を記録できるが mise の `asset_pattern` が単一プラットフォーム固定で linux+macOS を 1 エントリに収められず、linux 単独 lock は macOS の `mise install` を壊す。workflow 側で sha256 を直接 pin する。
-  - **workflow の `*_VERSION` / `*_SHA256` は Renovate 対象外＝手動更新**。cargo-deny は `mise.toml`↔workflow、pnpm は `package.json` の `packageManager`↔workflow `PNPM_VERSION` の**二重管理**なので版上げ時に揃える（詳細は design.md「依存の監査」）。
   - **pnpm audit は脆弱性監査のみ**で cargo-deny の licenses / bans 相当は無い（非対称）。npm 側の広い守りは `pnpm-workspace.yaml`（cooldown / postinstall ブロック=`allowBuilds:{}` / `verifyDepsBeforeRun`）側に置く。
-  - pnpm は corepack ではなく **pin + sha256 検証した standalone tarball** で導入する（PR の `packageManager` に CI 実行の pnpm を差し替えさせない）。
+  - **pnpm は aqua 管理の release tarball を使う**（corepack 不使用＝PR の `packageManager` に CI 実行の pnpm を差し替えさせない）。`aqua.yaml` の `pnpm/pnpm` と `examples/docker-node/package.json` の `packageManager` は別 consumer なので両方残るが、ドリフトは `check-pnpm-aqua-sync.sh` で検出する。
 
 ### K. type 語彙の自己テスト
 - 参照: `scripts/check-vocab-sync.sh`、`.pre-commit-config.yaml`（**pre-commit hook のみ。CI には載せない**＝毎 PR 実行は過剰。当該ファイル変更時のみ発火）
@@ -212,18 +214,18 @@
 
 | モジュール | 検証 | 前提 |
 |---|---|---|
-| 0 | `mise install` が通る / `prek install` 後に hook が登録される | mise + prek |
+| 0 | `mise install && aqua install` が通る / `prek install` 後に hook が登録される | mise + aqua + prek |
 | A | 規約違反の commit message・branch 名がローカルで弾かれる（負例で確認） | 0 + A |
 | B | 不正な PR title で `pr-title` ジョブが fail する | B |
 | C | `create-labels.sh` 後にラベルが揃う / テスト PR で autolabel が付く | C + ラベル作成 |
 | 全 workflow | `actionlint .github/workflows/*.yml` | actionlint を入手 |
-| D | `mise exec -- pinact run --check`（未 pin が無いこと） | 0（mise）+ pinact |
+| D | `aqua exec -- pinact run --check`（未 pin が無いこと） | 0（aqua）+ pinact |
 | E | `bash scripts/check-hook-rev-sha.sh` | スクリプトを移植済み |
-| F | `mise install`（`locked=true` 下で通ること） | 0（mise）+ `mise.lock` コミット済み |
-| H | `mise exec -- ghalint run`（違反なら既存 workflow を修正） | 0 + D 済み（未 pin で落ちる） |
-| I | `mise exec -- gitleaks dir .`（誤検知確認） | 0 + gitleaks |
+| F | `aqua update-checksum -prune` 後 `git diff --exit-code aqua-checksums.json`（aqua v2 に `--check` は無い。整合と未使用 checksum を diff で検出）／`aqua install` が `supported_envs` 全てで通ること | 0（aqua）+ `aqua-checksums.json` コミット済み |
+| H | `aqua exec -- ghalint run`（違反なら既存 workflow を修正） | 0 + D 済み（未 pin で落ちる） |
+| I | `aqua exec -- gitleaks dir .`（誤検知確認） | 0 + gitleaks |
 | J | `bash scripts/check-docker-digests.sh` / `docker build` + 起動 + healthcheck / `docker compose config -q` | Dockerfile・compose を移植済み |
-| M | `cargo deny check` / `trivy fs --scanners vuln,misconfig` / `pnpm audit --audit-level high` が通る（**負例**＝既知脆弱性・禁止ライセンス・禁止版で fail することも確認） | deny.toml・各ツール（cargo-deny は mise、trivy は別途入手） |
+| M | `aqua exec -- cargo-deny check` / `aqua exec -- trivy fs --scanners vuln,misconfig` / `aqua exec -- pnpm audit --audit-level high` が通る（**負例**＝既知脆弱性・禁止ライセンス・禁止版で fail することも確認）／`bash scripts/check-pnpm-aqua-sync.sh` で版同期 | deny.toml・aqua bootstrap 済み |
 | K | `bash scripts/check-vocab-sync.sh`（語彙の抽出元 4 箇所が一致） | A/B/C 済み |
 | G | `renovate-config-validator`（`renovate.json5` 構文） | validator を入手 |
 
@@ -236,7 +238,8 @@
 ファイルだけでは完結しない。選んだモジュールに応じてリポジトリ設定を手で入れる:
 
 - **C**: Squash merge のみ有効化 + "Default to PR title for squash commits" / `bash create-labels.sh` でラベル作成 / 初回の基準 tag `v0.1.0` を手動作成
-- **B / D / E / F / H / I / J / M**: 各 CI チェックを `main` の Branch protection で **required** にするか決める（required 化は任意・運用次第。M は `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)`）
+- **B / D / E / F / H / I / J / M**: 各 CI チェックを `main` の Branch protection で **required** にするか決める（required 化は任意・運用次第。M は `Audit Rust deps (cargo-deny)` / `Scan filesystem (trivy)` / `Audit npm deps (pnpm audit)` / `Verify pnpm packageManager == aqua.yaml`）
+- **F**（hard 条件）: `.github/CODEOWNERS` を有効化するため、default branch の branch protection で **"Require review from Code Owners"** を ON にする。これが無いと CODEOWNERS は単なる通知になり、aqua 設定改変の maintainer ゲートが機能しない。
 - **D**（任意）: GitHub 純正 **Enforce SHA pinning** ポリシーを ON
 - **G**: [Renovate App](https://github.com/apps/renovate) を有効化（self-hosted なら別アイデンティティのトークンを用意）
 
@@ -244,15 +247,14 @@
 
 ## 既知の落とし穴チェックリスト（コピー時に必ず確認）
 
-- [ ] 共有ファイル（`pr-validation.yml` / `.pre-commit-config.yaml` / `mise.toml` / `renovate.json5`）から**選んだモジュールの job / hook / tool だけ**を抜いた（無関係な job を持ち込んでいない）
+- [ ] 共有ファイル（`pr-validation.yml` / `security-audit.yml` / `.pre-commit-config.yaml` / `aqua.yaml` / `mise.toml` / `renovate.json5`）から**選んだモジュールの job / hook / tool だけ**を抜いた（無関係な job を持ち込んでいない）
 - [ ] 各 job / hook が参照する `scripts/check-*.sh` を一緒に移植した
-- [ ] ローカルフック系を入れたなら基盤（prek + mise、モジュール `0`）を先に立てた
+- [ ] ローカルフック系を入れたなら基盤（prek + aqua、モジュール `0`）を先に立てた
 - [ ] H（ghalint）を入れたなら未 pin の action が残っていない（D 済み）
 - [ ] PR テンプレに `BREAKING CHANGE:` の文字列を残していない（L×C）
 - [ ] release-drafter のバージョンに `categories[].exclusive` が**対応しているか**。v6 系なら autolabeler 排他化で代替
-- [ ] `mise.lock` / `pnpm-lock.yaml` を**コピーせず生成**した
+- [ ] `mise.lock` / `pnpm-lock.yaml` / `aqua-checksums.json` を**コピーせず生成**した
 - [ ] action の SHA と base image digest を**対象環境で解決**した
-- [ ] M を入れたなら、workflow の `*_VERSION` / `*_SHA256`（cargo-deny / trivy / pnpm）を対象環境で解決し、cargo-deny の sha256 を `mise.lock` と一致させた（これらは Renovate 対象外＝手動）。cargo-deny は 0.19 系以降を使った
+- [ ] F（aqua）の `aqua.yaml` に `require_checksum: true` を付けた／`.github/CODEOWNERS` を追加し default branch の "Require review from Code Owners" を ON にした／`security-audit.yml` のジョブに base-branch overlay step を入れ `push: main` でも実行した
 - [ ] `prek install` に **`--hook-type pre-commit --hook-type commit-msg --hook-type pre-push`** を含めた（commit-check は commit-msg / pre-push、その他のローカルフックは pre-commit 既定）
-- [ ] mise-locked / pin 系の CI 検証は **静的**（PR で `mise install` 等の実行をしない）
 - [ ] type 語彙が A/B/C/K の参照箇所で一致（K の自己テストで担保）

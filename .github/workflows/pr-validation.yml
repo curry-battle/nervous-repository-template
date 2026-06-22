@@ -1,13 +1,16 @@
 name: PR Validation
 
-# PR の入口で PR title が Conventional Commits 形式かを検証する
-# (squash 後の main コミット & リリースノートの1行になるため必須)。
-# commit message 自体はローカル prek のみで縛る方針なので CI では検証しない。
+# PR の入口で必須の整合性チェックを集めた workflow。merge をブロックする gate として機能する。
+#   - pr-title:       PR title が Conventional Commits 形式か (squash 後の main コミット
+#                     とリリースノート 1 行になるため)
+#   - pin-actions:    GitHub Actions の uses が full commit SHA で固定されているか
+#   - pin-hooks:      pre-commit hook の rev が full commit SHA で固定されているか
+#   - aqua-checksums: aqua-checksums.json が aqua.yaml と整合しているか
+#   - pnpm-aqua-sync: examples の packageManager と aqua.yaml の pnpm version が一致しているか
+#   - docker:         Dockerfile の lint / base image の digest 固定 / compose の構文
 #
-# ブランチ名の Conventional Branch チェックは廃止した。
-# 理由: ブランチ名は squash マージで main の履歴に残らず、リリースノートにも影響しない。
-# 命名規則はあくまで運用上の目安であり、CI で必須チェックして PR をブロックするほどの
-# 保護対象ではないと判断したため。命名はローカル運用/レビューでの確認に委ねる。
+# aqua exec を伴う監査系 5 ジョブ (gha-lint / gitleaks / cargo-deny / trivy / pnpm-audit) は
+# security-audit.yml に分離している (push:main でも再実行して bump の取りこぼしを検知するため)。
 
 on:
   pull_request:
@@ -41,11 +44,9 @@ jobs:
             ci
             chore
             revert
-          # scope は任意・自由記述（中身は縛らない）
+          # scope は任意、自由記述 (中身は縛らない)
           requireScope: false
-          # subject の整形ルールは課さない（最小: type 形式のみ）
-          # 破壊的変更の "!" を許可
-          # （subjectPattern を設定しないことで subject 文面は自由）
+          # subjectPattern は設定しない (type 部分のみ縛り、subject 文面と "!" 付き破壊的変更は自由)
 
   # --- GitHub Actions が full commit SHA で固定されているか検証 ----------------
   # fix: "false" = 修正せず検証のみ。未固定の uses: があれば CI を失敗させる。
@@ -76,11 +77,13 @@ jobs:
           persist-credentials: false
       - run: bash scripts/check-hook-rev-sha.sh
 
-  # --- mise ツールが mise.lock で checksum 固定されているか「静的に」検証 ----------
-  # mise install は実行しない（PR 側 mise.toml/mise.lock による任意コード実行を避けるため）。
-  # mise.lock が無ければ失敗する（検証の迂回を防ぐ）。
-  mise-locked:
-    name: Verify mise tools are locked
+  # --- aqua-checksums.json が aqua.yaml と整合しているか検証 ----------------------
+  # aqua.yaml の version を上げたが aqua-checksums.json を更新し忘れた PR を fail させる
+  # 
+  # security-audit.yml と違って base-branch overlay は不要: PR head で実行する
+  # aqua update-checksum は download + hash 計算しかせず binary を exec しないため、 PR head の aqua 設定をそのまま検証してよい
+  aqua-checksums:
+    name: Verify aqua checksums are current
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -89,7 +92,30 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
-      - run: bash scripts/check-mise-locked.sh
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+        with:
+          aqua_version: v2.60.1
+      # aqua v2 に --check フラグは無いので、再生成 → git diff で drift を検出する。
+      # -prune は update-checksum-action 側と揃え、未使用 checksum の残存も検出する。
+      - name: Verify aqua-checksums.json is up to date
+        run: |
+          aqua update-checksum -prune
+          git diff --exit-code aqua-checksums.json
+
+  # --- pnpm の packageManager と aqua.yaml の version が一致しているか検証 -------
+  # aqua.yaml と examples/docker-node/package.json の 
+  # packageManager は別 consumer に供するため両方持つが、ドリフトを許さない。
+  pnpm-aqua-sync:
+    name: Verify pnpm packageManager == aqua.yaml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - run: bash scripts/check-pnpm-aqua-sync.sh
 
   # --- Dockerfile / compose の検証（lint + base image の digest 固定 + compose 構文）---
   docker:
@@ -115,139 +141,3 @@ jobs:
                -o -name 'compose.yml' -o -name 'compose.yaml' \) -print)
           if [ ${#files[@]} -eq 0 ]; then echo "no compose files"; exit 0; fi
           for f in "${files[@]}"; do echo "validating $f"; docker compose -f "$f" config -q; done
-
-  # --- workflow のセキュリティ lint（ghalint：permissions 最小化・SHA 固定等） ----
-  # ghalint は固定バージョンを checksum 検証してから実行（PR 側設定を信頼しない）。
-  # checksum は mise.lock の ghalint linux-x64 と一致させること。
-  gha-lint:
-    name: Lint workflows (ghalint)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    env:
-      GHALINT_VERSION: "1.5.6"
-      GHALINT_SHA256: "98ee0e3330de7286f470d1e89c03ff7ce70d7a5998ba0f15969c400447be579c"
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          persist-credentials: false
-      - name: Run ghalint (pinned + checksum-verified)
-        run: |
-          url="https://github.com/suzuki-shunsuke/ghalint/releases/download/v${GHALINT_VERSION}/ghalint_${GHALINT_VERSION}_linux_amd64.tar.gz"
-          curl -fsSL -o ghalint.tar.gz "$url"
-          echo "${GHALINT_SHA256}  ghalint.tar.gz" | sha256sum -c -
-          tar -xzf ghalint.tar.gz ghalint
-          ./ghalint run
-          rm -f ghalint.tar.gz ghalint
-
-  # --- secret スキャン（gitleaks：固定版を checksum 検証して実行） ----------------
-  # checksum は mise.lock の gitleaks linux-x64 と一致させること。
-  gitleaks:
-    name: Scan for secrets (gitleaks)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    env:
-      GITLEAKS_VERSION: "8.30.1"
-      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          persist-credentials: false
-      - name: Run gitleaks (pinned + checksum-verified)
-        run: |
-          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -fsSL -o gitleaks.tar.gz "$url"
-          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
-          tar -xzf gitleaks.tar.gz gitleaks
-          ./gitleaks dir . --redact --no-banner
-          rm -f gitleaks.tar.gz gitleaks
-
-  # --- Rust 依存の監査（cargo-deny：固定版を checksum 検証して実行） ----------------
-  # cargo-deny は cargo metadata のみを使い、依存のビルド/実行はしない（任意コード実行を避ける）。
-  # checksum は mise.lock の cargo-deny linux-x64 と一致させること。
-  cargo-deny:
-    name: "Audit Rust deps (cargo-deny)"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    env:
-      CARGO_DENY_VERSION: "0.19.9"
-      CARGO_DENY_SHA256: "f1f8eedc2a3ac297c540873f93785d4104b102c0079506b2a6b3221b7ec956af"
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          persist-credentials: false
-      - name: Run cargo-deny (pinned + checksum-verified)
-        run: |
-          url="https://github.com/EmbarkStudios/cargo-deny/releases/download/${CARGO_DENY_VERSION}/cargo-deny-${CARGO_DENY_VERSION}-x86_64-unknown-linux-musl.tar.gz"
-          curl -fsSL -o cargo-deny.tar.gz "$url"
-          echo "${CARGO_DENY_SHA256}  cargo-deny.tar.gz" | sha256sum -c -
-          # バイナリだけ取り出す（LICENSE/README を作業ツリーに残さない。ghalint/gitleaks と同方針）
-          tar -xzf cargo-deny.tar.gz --strip-components=1 --wildcards '*/cargo-deny'
-          # --locked: コミット済み Cargo.lock がそのまま監査対象であることを保証する
-          # --config: 明示して deny.toml の所在を固定する
-          ./cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml
-          rm -f cargo-deny.tar.gz cargo-deny
-
-  # --- ファイルシステムの脆弱性 / 誤設定スキャン（trivy：固定版を checksum 検証して実行）---
-  # trivy fs は lockfile / 設定ファイルの静的スキャン（trivy image ではないのでビルド不要）。
-  # trivy は mise が checksum を lock できない（aqua/ubi backend とも未記録）ため mise 管理外。
-  # checksum は trivy 公式 checksums.txt の linux-x64（Linux-64bit.tar.gz）を直接 pin する。
-  trivy:
-    name: "Scan filesystem (trivy)"
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    env:
-      TRIVY_VERSION: "0.71.2"
-      TRIVY_SHA256: "0510e71e2fd39bf863856d499c8dc19feb4e7336546394c502a8f5cc7ab27460"
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          persist-credentials: false
-      - name: Run trivy (pinned + checksum-verified)
-        run: |
-          url="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
-          curl -fsSL -o trivy.tar.gz "$url"
-          echo "${TRIVY_SHA256}  trivy.tar.gz" | sha256sum -c -
-          tar -xzf trivy.tar.gz trivy
-          # --severity HIGH,CRITICAL: 低 severity の揺れで CI を落とさない（pnpm --audit-level high と揃える）
-          ./trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --exit-code 1 --no-progress .
-          rm -f trivy.tar.gz trivy
-
-  # --- npm 依存の監査（pnpm audit：install せず lockfile + advisory API のみ） ----------
-  # pnpm は workflow 側で固定する（corepack を使わない）。PR の package.json の packageManager に
-  # CI 実行する pnpm バイナリを差し替えさせないため、standalone リリース tarball を pin + sha256 検証して導入する
-  # （ghalint / gitleaks / cargo-deny / trivy と同じ pin+checksum パターン）。バージョンは example の packageManager に合わせる。
-  # install/build はしない（lockfile を読んで registry の advisory を問い合わせるだけ）。
-  pnpm-audit:
-    name: "Audit npm deps (pnpm audit)"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    env:
-      PNPM_VERSION: "11.6.0"
-      # pin した pnpm リリースの sha256（他ジョブと同じく改ざん検出のため検証する）
-      PNPM_SHA256: "74d64c1646385fb21691f32f0ab6aca1a9f5c829ba54d3cda3a24838a228e68c"
-    steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          persist-credentials: false
-      - name: Install pinned pnpm (download + checksum-verified)
-        run: |
-          url="https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/pnpm-linux-x64.tar.gz"
-          curl -fsSL -o pnpm.tar.gz "$url"
-          echo "${PNPM_SHA256}  pnpm.tar.gz" | sha256sum -c -
-          mkdir -p "$HOME/pnpm-bin"
-          tar -xzf pnpm.tar.gz -C "$HOME/pnpm-bin"
-          echo "$HOME/pnpm-bin" >> "$GITHUB_PATH"
-          rm -f pnpm.tar.gz
-      - name: Run pnpm audit (no install)
-        working-directory: examples/docker-node
-        run: pnpm audit --audit-level high

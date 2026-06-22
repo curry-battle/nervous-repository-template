@@ -1,0 +1,47 @@
+name: Update aqua checksums
+
+# Renovate が aqua.yaml の version を bump した PR に対して、
+# 対応する aqua-checksums.json の更新差分を補完する
+# 補完は 同じ PR branch に push する形でなされる
+
+
+# 注: security-audit.yml は base branch の aqua.yaml を overlay して PR 側のツール差し替えを
+#     無効化するが、この workflow は逆に PR head の aqua.yaml を直接読む (新 version の release
+#     asset を取得して hash を計算するため)。
+#
+#     第一の防壁は job 冒頭の `if: github.actor == 'renovate[bot]'` で、人手 PR や悪意ある PR では
+#     job 自体が起動しない。第二の防壁として、万が一 Renovate 経由 (Renovate 側の compromise)
+#     で悪性 package を踏んだとしても、update-checksum-action は download + hash 計算のみで
+#     binary を exec しないため、悪性 bytes は単に aqua-checksums.json に hash として記録される
+#     だけで任意コード実行には至らない (defense in depth)。
+
+on:
+  pull_request:
+    paths:
+      - aqua.yaml
+      - aqua-checksums.json
+
+permissions:
+  contents: read
+
+jobs:
+  update-aqua-checksums:
+    if: github.actor == 'renovate[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # Renovate PR の branch に push する
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.head_ref }}
+          # push は後続の update-checksum-action が github_token を明示で受け取って行うため、
+          # checkout 時点で token を git config に残す必要は無い
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+        with:
+          aqua_version: v2.60.1
+      - uses: aquaproj/update-checksum-action@c5df5a5c2a897a9b807068f062140506d092e7ac # v0.2.7
+        with:
+          prune: true

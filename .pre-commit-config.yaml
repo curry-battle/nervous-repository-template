@@ -8,7 +8,9 @@
 # （pre-commit を使う場合も同じ id・stages でそのまま動く）
 
 repos:
-  # Dockerfile linter（mise の hadolint バイナリを使用＝docker 不要）
+  # Dockerfile linter (remote hook が rev SHA 固定で hadolint バイナリを取得＝docker 不要)
+  # 注: hadolint は aqua にも mise にも載せず、CI は hadolint/hadolint-action、ローカルは
+  # ここの remote hook で取得する経路に統一している (aqua + remote hook の二重管理を避けるため)。
   - repo: https://github.com/hadolint/hadolint
     rev: 57e1618d78fd469a92c1e584e8c9313024656623  # v2.14.0
     hooks:
@@ -25,14 +27,14 @@ repos:
       - id: check-branch
         stages: [pre-push]
 
-  # GitHub Actions の uses: を SHA に自動 pin する（pinact）。
-  # pinact 未インストールの環境では skip（CI の pin-actions ジョブが強制する）。
-  # pinact のインストール: https://github.com/suzuki-shunsuke/pinact
+  # ローカル CLI hook は aqua の有無で skip 判定し、aqua があれば `aqua exec --` 経由で実行する。
+  # aqua 未 bootstrap な開発機では skip メッセージのみ出力し、commit はブロックしない（CI が enforce）。
+  # pinact だけは pass_filenames: true のため `"$@" -- ` 形でファイル名を tool に転送する。
   - repo: local
     hooks:
       - id: pinact
         name: pin GitHub Actions to SHA (pinact)
-        entry: bash -c 'command -v pinact >/dev/null 2>&1 && exec pinact run "$@" || echo "[pinact] not installed; skipping (CI enforces)"' --
+        entry: bash -c 'command -v aqua >/dev/null 2>&1 && exec aqua exec -- pinact run "$@" || echo "[pinact] aqua not installed; skipping (CI enforces)"' --
         language: system
         files: ^\.github/(workflows|actions)/.*\.ya?ml$
         pass_filenames: true
@@ -61,34 +63,56 @@ repos:
         files: ^(commit-check\.toml|\.github/release-drafter\.yml|\.github/workflows/pr-validation\.yml)$
         pass_filenames: false
 
-      # workflow のセキュリティ lint（mise の ghalint を使用。未インストール時は skip＝CI が強制）
+      # aqua.yaml の pnpm 版と examples/docker-node/package.json の packageManager が一致するか検証
+      # （CI の pnpm-aqua-sync と同一スクリプト）
+      - id: check-pnpm-aqua-sync
+        name: check pnpm packageManager == aqua.yaml
+        entry: bash scripts/check-pnpm-aqua-sync.sh
+        language: system
+        files: ^(aqua\.yaml|examples/docker-node/package\.json)$
+        pass_filenames: false
+
+      # check-pnpm-aqua-sync.sh の 5 ケース回帰テスト。pre-push 時のみ実行。
+      # CI ではなく pre-push に置いている理由: このテストは parser ロジック自体の正しさを
+      # 確かめるもので、PR の中身には依存しない。parser が壊れれば CI の pnpm-aqua-sync
+      # ジョブが実データで失敗するので検知はそこで足りる。CI で毎 PR 走らせるほどでもないが、
+      # 当該スクリプトを編集して push する前に手元で潰せる安全網として置く。
+      - id: test-check-pnpm-aqua-sync
+        name: test check-pnpm-aqua-sync.sh (5 cases)
+        entry: bash scripts/test-check-pnpm-aqua-sync.sh
+        language: system
+        files: ^scripts/(check|test-check)-pnpm-aqua-sync\.sh$
+        stages: [pre-push]
+        pass_filenames: false
+
+      # workflow のセキュリティ lint（aqua の ghalint を使用。aqua 未 bootstrap 時は skip＝CI が強制）
       - id: ghalint
         name: lint workflows (ghalint)
-        entry: bash -c 'command -v ghalint >/dev/null 2>&1 && exec ghalint run || echo "[ghalint] not installed; skipping (CI enforces)"'
+        entry: bash -c 'command -v aqua >/dev/null 2>&1 && exec aqua exec -- ghalint run || echo "[ghalint] aqua not installed; skipping (CI enforces)"'
         language: system
         files: ^\.github/(workflows|actions)/.*\.ya?ml$
         pass_filenames: false
 
-      # commit 前に staged 差分の secret を検出（mise の gitleaks を使用。未インストール時は skip＝CI が強制）
+      # commit 前に staged 差分の secret を検出（aqua の gitleaks を使用。aqua 未 bootstrap 時は skip＝CI が強制）
       - id: gitleaks
         name: detect hardcoded secrets (gitleaks)
-        entry: bash -c 'command -v gitleaks >/dev/null 2>&1 && exec gitleaks git --pre-commit --redact --staged --verbose || echo "[gitleaks] not installed; skipping (CI enforces)"'
+        entry: bash -c 'command -v aqua >/dev/null 2>&1 && exec aqua exec -- gitleaks git --pre-commit --redact --staged --verbose || echo "[gitleaks] aqua not installed; skipping (CI enforces)"'
         language: system
         pass_filenames: false
         always_run: true
 
-      # Rust 依存を cargo-deny で監査（mise の cargo-deny を使用。未インストール時は skip＝CI が強制）
+      # Rust 依存を cargo-deny で監査（aqua の cargo-deny を使用。aqua 未 bootstrap 時は skip＝CI が強制）
       - id: cargo-deny
         name: audit Rust deps (cargo-deny)
-        entry: bash -c 'command -v cargo-deny >/dev/null 2>&1 && exec cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml || echo "[cargo-deny] not installed; skipping (CI enforces)"'
+        entry: bash -c 'command -v aqua >/dev/null 2>&1 && exec aqua exec -- cargo-deny --locked --manifest-path examples/docker-rust/Cargo.toml check --config examples/docker-rust/deny.toml || echo "[cargo-deny] aqua not installed; skipping (CI enforces)"'
         language: system
         files: (^|/)(Cargo\.toml|Cargo\.lock|deny\.toml)$
         pass_filenames: false
 
-      # ファイルシステムの脆弱性 / 誤設定を trivy でスキャン（trivy は mise 管理外。未インストール時は skip＝CI が強制）
+      # ファイルシステムの脆弱性 / 誤設定を trivy でスキャン（aqua の trivy を使用。aqua 未 bootstrap 時は skip＝CI が強制）
       - id: trivy
         name: scan filesystem (trivy)
-        entry: bash -c 'command -v trivy >/dev/null 2>&1 && exec trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --skip-dirs node_modules,target,.git --exit-code 1 --no-progress . || echo "[trivy] not installed; skipping (CI enforces)"'
+        entry: bash -c 'command -v aqua >/dev/null 2>&1 && exec aqua exec -- trivy fs --scanners vuln,misconfig --severity HIGH,CRITICAL --skip-dirs node_modules,target,.git --exit-code 1 --no-progress . || echo "[trivy] aqua not installed; skipping (CI enforces)"'
         language: system
         pass_filenames: false
         always_run: true

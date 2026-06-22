@@ -1,6 +1,6 @@
 {
   // Renovate 設定（Mend ホスト型 GitHub App で実行する前提）。
-  // 対象は 3 面: GitHub Actions(uses:) / pre-commit hook(rev) / mise(mise.toml)。
+  // 対象は 4 面: GitHub Actions(uses:) / pre-commit hook(rev) / mise(mise.toml) / aqua(aqua.yaml)。
   // サプライチェーン攻撃を意識し「不変参照に固定」「公開直後は採用しない(cooldown)」を軸にする。
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
 
@@ -10,6 +10,10 @@
     "helpers:pinGitHubActionDigests",
     // Docker ベースイメージを digest 固定し続ける（dockerfile / docker-compose manager 対象）
     "docker:pinDigests",
+    // aqua manager / aqua-registry の version を Renovate に追従させる公式 preset。
+    // この preset が aqua.yaml の packages[*].version 追従をカバーするので、registries[].ref を
+    // 別途 customManager で補う (preset の覆い範囲を確認の上、必要なら下記 customManager を削除)。
+    "github>aquaproj/aqua-renovate-config#2.13.0",
   ],
 
   // Mend App を "All repositories" で入れると default が silent(=PR/Issue を作らない)になる。
@@ -45,11 +49,27 @@
 
   // pre-commit hook も Renovate で更新（manager はデフォルト無効なので明示的に有効化）
   "pre-commit": { enabled: true },
-  // mise ツール(prek / pinact)も Renovate で更新
+  // mise ツール(aqua bootstrap)も Renovate で更新
   mise: { enabled: true },
   // cargo manager は config:recommended で既定有効（無効化していない）。
   // examples/docker-rust/Cargo.lock は rangeStrategy:"pin" でそのまま pin 維持される。
   // 機能上の変更は不要なため、この方針を明示するコメントのみ。
+
+  // aqua.yaml の registries[].ref を Renovate が直接更新しない場合の補助。
+  // regex は registries 文脈にアンカーし、packages の version まで誤マッチしないようにする。
+  // aqua-renovate-config preset が registries[].ref まで追従する場合はこのブロックを削除する
+  // (preset と二重定義しない)。
+  customManagers: [
+    {
+      customType: "regex",
+      managerFilePatterns: ["(^|/)aqua\\.yaml$"],
+      matchStrings: [
+        "type:\\s*standard\\s*\\n\\s*ref:\\s*(?<currentValue>v[0-9.]+)",
+      ],
+      depNameTemplate: "aquaproj/aqua-registry",
+      datasourceTemplate: "github-releases",
+    },
+  ],
 
   packageRules: [
     {
@@ -66,6 +86,16 @@
       description: "GitHub Actions / pre-commit は不変参照(digest)で固定し続ける",
       matchManagers: ["github-actions", "pre-commit"],
       pinDigests: true,
+    },
+    {
+      description: "aqua packages は他の実行ツールと同じ cooldown を適用する",
+      matchManagers: ["aqua"],
+      minimumReleaseAge: "7 days",
+    },
+    {
+      description: "pnpm audit バイナリは packageManager と版同期 (check-pnpm-aqua-sync) が要るので cooldown を統一",
+      matchPackageNames: ["pnpm/pnpm"],
+      minimumReleaseAge: "7 days",
     },
   ],
 
