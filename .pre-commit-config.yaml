@@ -70,6 +70,19 @@ repos:
         files: ^(aqua\.yaml|examples/docker-node/package\.json)$
         pass_filenames: false
 
+      # check-pnpm-aqua-sync.sh の 5 ケース回帰テスト。pre-push 時のみ実行。
+      # CI ではなく pre-push に置いている理由: このテストは parser ロジック自体の正しさを
+      # 確かめるもので、PR の中身には依存しない。parser が壊れれば CI の pnpm-aqua-sync
+      # ジョブが実データで失敗するので検知はそこで足りる。CI で毎 PR 走らせるほどでもないが、
+      # 当該スクリプトを編集して push する前に手元で潰せる安全網として置く。
+      - id: test-check-pnpm-aqua-sync
+        name: test check-pnpm-aqua-sync.sh (5 cases)
+        entry: bash scripts/test-check-pnpm-aqua-sync.sh
+        language: system
+        files: ^scripts/(check|test-check)-pnpm-aqua-sync\.sh$
+        stages: [pre-push]
+        pass_filenames: false
+
       # workflow のセキュリティ lint（aqua の ghalint を使用。aqua 未 bootstrap 時は skip＝CI が強制）
       - id: ghalint
         name: lint workflows (ghalint)
