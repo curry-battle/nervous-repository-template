@@ -46,7 +46,7 @@ jobs:
             revert
           # scope は任意、自由記述 (中身は縛らない)
           requireScope: false
-          # subjectPattern は設定しない (type 形式以外、subject 文面は自由。"!" 付きの破壊的変更も許可)
+          # subjectPattern は設定しない (type 部分のみ縛り、subject 文面と "!" 付き破壊的変更は自由)
 
   # --- GitHub Actions が full commit SHA で固定されているか検証 ----------------
   # fix: "false" = 修正せず検証のみ。未固定の uses: があれば CI を失敗させる。
@@ -96,9 +96,10 @@ jobs:
         with:
           aqua_version: v2.60.1
       # aqua v2 に --check フラグは無いので、再生成 → git diff で drift を検出する。
+      # -prune は update-checksum-action 側と揃え、未使用 checksum の残存も検出する。
       - name: Verify aqua-checksums.json is up to date
         run: |
-          aqua update-checksum
+          aqua update-checksum -prune
           git diff --exit-code aqua-checksums.json
 
   # --- pnpm の packageManager と aqua.yaml の version が一致しているか検証 -------
