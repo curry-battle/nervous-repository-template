@@ -31,13 +31,13 @@
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/j178/prek/v0.4.4/prek-aarch64-apple-darwin.tar.gz",
-      "checksum": "D3D74F96BBB9FE88D14BDB3119501F8F39602B885E19F57C6567791599AFD231",
+      "id": "github_release/github.com/j178/prek/v0.4.5/prek-aarch64-apple-darwin.tar.gz",
+      "checksum": "ED4920762F0E3DB07163C437AF622A1D4905E1AD7053692A495551B9CE92549F",
       "algorithm": "sha256"
     },
     {
-      "id": "github_release/github.com/j178/prek/v0.4.4/prek-x86_64-unknown-linux-musl.tar.gz",
-      "checksum": "4A0AA963C6468EBCD4734EE7D763E8C1223BFB9BDABCB4528A7AFAC6B0147E12",
+      "id": "github_release/github.com/j178/prek/v0.4.5/prek-x86_64-unknown-linux-musl.tar.gz",
+      "checksum": "94698D1CD74E7B462A017257EFEAB6F46142F4FB3DA9A1314F06C1D55C26D614",
       "algorithm": "sha256"
     },
     {
