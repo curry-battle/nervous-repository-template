@@ -26,7 +26,7 @@ checksum:
 packages:
   # 注: hadolint は .pre-commit-config.yaml の remote hook (SHA-pinned rev) で取得・実行する。
   # aqua 側に置くと 2 経路で管理が分裂するため、ここからは意図的に除外する (codex#5)。
-  - name: j178/prek@v0.4.4
+  - name: j178/prek@v0.4.5
   - name: suzuki-shunsuke/pinact@v4.1.0
   - name: suzuki-shunsuke/ghalint@v1.5.6
   - name: gitleaks/gitleaks@v8.30.1
