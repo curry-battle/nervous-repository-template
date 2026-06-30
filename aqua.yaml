@@ -10,7 +10,7 @@
 registries:
   - type: standard
     # aqua-renovate-config preset がこの annotation を検出して PR を出す (float させない)
-    ref: v4.526.0 # renovate: depName=aquaproj/aqua-registry
+    ref: v4.527.0 # renovate: depName=aquaproj/aqua-registry
 
 checksum:
   enabled: true
