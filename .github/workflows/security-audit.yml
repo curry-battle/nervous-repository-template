@@ -51,7 +51,7 @@ jobs:
           # fail-closed: base に aqua 設定が無ければ job fail。
           # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
           git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.60.1
       - run: aqua install
@@ -78,7 +78,7 @@ jobs:
           # fail-closed: base に aqua 設定が無ければ job fail。
           # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
           git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.60.1
       - run: aqua install
@@ -105,7 +105,7 @@ jobs:
           # fail-closed: base に aqua 設定が無ければ job fail。
           # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
           git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.60.1
       - run: aqua install
@@ -134,7 +134,7 @@ jobs:
           # fail-closed: base に aqua 設定が無ければ job fail。
           # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
           git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.60.1
       - run: aqua install
@@ -163,7 +163,7 @@ jobs:
           # fail-closed: base に aqua 設定が無ければ job fail。
           # initial adoption は本 PR で完了済みなので、以後 else 経路は不要。
           git checkout FETCH_HEAD -- aqua.yaml aqua-checksums.json
-      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.60.1
       - run: aqua install
