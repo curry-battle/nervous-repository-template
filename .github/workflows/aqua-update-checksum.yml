@@ -39,7 +39,7 @@ jobs:
           # push は後続の update-checksum-action が github_token を明示で受け取って行うため、
           # checkout 時点で token を git config に残す必要は無い
           persist-credentials: false
-      - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
+      - uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.60.1
       - uses: aquaproj/update-checksum-action@c5df5a5c2a897a9b807068f062140506d092e7ac # v0.2.7
