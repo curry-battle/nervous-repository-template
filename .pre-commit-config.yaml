@@ -55,12 +55,12 @@ repos:
         files: (^|/)Dockerfile(\.[^/]+)?$|\.Dockerfile$
         pass_filenames: false
 
-      # type 語彙が 4 箇所で一致しているか検証（CI の vocab-sync と同一スクリプト）
+      # type 語彙が 3 箇所で一致しているか検証
       - id: check-vocab-sync
         name: check type vocabulary is in sync
         entry: bash scripts/check-vocab-sync.sh
         language: system
-        files: ^(commit-check\.toml|\.github/release-drafter\.yml|\.github/workflows/pr-validation\.yml)$
+        files: ^(commit-check\.toml|release-please-config\.json|\.github/workflows/pr-validation\.yml)$
         pass_filenames: false
 
       # aqua.yaml の pnpm 版と examples/docker-node/package.json の packageManager が一致するか検証

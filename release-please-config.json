@@ -1,0 +1,21 @@
+{
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "changelog-sections": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "perf", "section": "Performance"},
+    {"type": "refactor", "section": "Refactoring"},
+    {"type": "docs", "section": "Maintenance"},
+    {"type": "test", "section": "Maintenance"},
+    {"type": "build", "section": "Maintenance"},
+    {"type": "ci", "section": "Maintenance"},
+    {"type": "chore", "section": "Maintenance"},
+    {"type": "revert", "section": "Maintenance"}
+  ],
+  "packages": {
+    ".": {}
+  }
+}

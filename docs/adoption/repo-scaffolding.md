@@ -6,7 +6,7 @@
   - **ライセンス種別**: MIT / Apache-2.0 / BSD-3-Clause / 独自（既存ライセンスがあればそれに合わせる）
   - **PR テンプレ / issue テンプレ**: 採用 / 既存を保持
 - 生成: なし
-- 注意（落とし穴）: PR テンプレ本文に **`BREAKING CHANGE:` という文字列を書かない**（`release-drafter` の body autolabeler に一致して全 PR が breaking 扱いになる）。"!" を使う旨の表現にする。
+- 注意（落とし穴）: PR テンプレ本文に **`BREAKING CHANGE:` という文字列を書かない**（squash 設定次第で PR body がコミットに含まれ、Release Please が breaking change footer と判定する）。"!" を使う旨の表現にする。
 - 検証: テンプレが反映されているか目視（PR / issue 作成画面で確認）
 - GitHub 手動設定: なし
 - 依存: なし

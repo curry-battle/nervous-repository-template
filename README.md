@@ -22,11 +22,11 @@
 
 | 目的 | ツール | チェックするタイミング |
 |---|---|---|
-| リリースノート / semver を自動生成 | [release-drafter](https://github.com/release-drafter/release-drafter) | main への push（CI） |
+| CHANGELOG / semver / GitHub Release を自動管理 | [Release Please](https://github.com/googleapis/release-please) | main への push（CI） |
 
 Squash マージを前提にしているため、PR title はそのまま `main` のコミットメッセージになり、
-release-drafter がそれをリリースノートの 1 行として拾う。
-この「PR title → `main` コミット → リリースノート」を一本に通すため、
+Release Please がそれを解析して release PR・CHANGELOG・semver を自動管理する。
+この「PR title → `main` コミット → リリース」を一本に通すため、
 commit / branch / PR title / リリース分類のすべてを
 Conventional Commits の type（`feat` / `fix` …）で統一している。
 
@@ -70,7 +70,6 @@ prek install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
 
 1. Squash merge のみ有効化（+ "Default to PR title for squash commits"）
 2. [Renovate App](https://github.com/apps/renovate) を有効化
-3. `bash create-labels.sh` でラベルを作成
 
 ### 推奨設定（任意）
 
