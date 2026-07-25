@@ -1,7 +1,7 @@
 # commit-check 設定 (TOML)
 #   - [commit] : commit message の規則。commit-msg hook（prek、ローカル）でのみ適用する。
 #   - [branch] : ブランチ名の規則。pre-push hook（prek、ローカル）でのみ適用する。CI では検証しない。
-# type 語彙は release-drafter.yml / pr-validation.yml と必ず揃えること（Single Source は docs/design.md）。
+# type 語彙は release-please-config.json / pr-validation.yml と必ず揃えること（Single Source は docs/design.md）。
 # 公式スキーマ: https://commit-check.github.io/commit-check/configuration.html
 
 [commit]

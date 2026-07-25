@@ -1,0 +1,21 @@
+# release-please（リリース自動化）
+
+- 参照: `release-please-config.json`、`.release-please-manifest.json`、`.github/workflows/release.yml`
+- 抜き出すもの: `release-please-config.json`(設定) + `.release-please-manifest.json`(バージョン記録) + `workflows/release.yml`(Release Please + publish job)。3 点セットで持ち込む。
+- AskUser:
+  - **release-type**: `node` / `python` / `rust` / `simple` 等（プロジェクト種別に合わせる）
+  - **changelog-sections**: 全 type を載せるか、feat/fix のみか
+  - **publish job**: npm / PyPI / crates.io 等のパターン、または不要（GitHub Release のみ）
+  - **初期バージョン**: `.release-please-manifest.json` に設定する現在バージョン（`0.1.0` 等）
+- 生成: なし
+- 注意（落とし穴）:
+  - GITHUB_TOKEN で作成した GitHub Release は `on: release` イベントを発火しない。publish は同一ワークフロー内の後続 job にする。
+  - GITHUB_TOKEN で作成された release PR は `on: pull_request` ワークフローを発火しない。required status check を設定している場合、release PR がマージ不能になる。対策は [design.md](../design.md) の「運用上の注意」を参照。
+  - `.release-please-manifest.json` は Release Please が release PR で自動更新する。CODEOWNERS に入れると release PR のマージに毎回 maintainer 承認が必要になる点に注意。
+  - `release-type` の選択はプロジェクトの言語/ビルドシステムに依存する。テンプレートのデフォルトは `simple`（`version.txt` と CHANGELOG.md を管理）。`node` を使うなら `package.json` が必要。
+  - `simple` strategy は release PR で `version.txt` をリポ直下に作成・更新する。
+  - Release Please は `feat:` と `fix:` のみでリリースをトリガーする。`docs:` 等だけのコミットが続いてもリリースは作られない。
+  - publish job はテンプレート本体では `if: false &&` で無効化されている。利用先で有効にするには `false &&` を削除し、プロジェクトに合わせた publish step に差し替える。
+- 検証: テスト PR で release PR が作成されること / publish job が `release_created` 条件で正しく制御されること
+- GitHub 手動設定: Squash merge のみ有効化 + "Default to PR title for squash commits"
+- 依存: `conventional-commits` / `pr-title`（語彙）

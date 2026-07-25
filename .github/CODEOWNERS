@@ -21,5 +21,6 @@ aqua-checksums.json          @curry-battle
 /scripts/test-check-*.sh     @curry-battle
 .pre-commit-config.yaml      @curry-battle
 renovate.json5               @curry-battle
+release-please-config.json   @curry-battle
 mise.toml                    @curry-battle
 mise.lock                    @curry-battle

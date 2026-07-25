@@ -25,7 +25,7 @@
   dependencyDashboard: true,
   configMigration: true,
 
-  // PR を Conventional に: "chore(deps): ..." → PR title チェック通過 & autolabeler が chore→🧰 Maintenance
+  // PR を Conventional に: "chore(deps): ..." → PR title チェック通過 & Release Please が CHANGELOG の Maintenance に分類
   semanticCommits: "enabled",
   semanticCommitType: "chore",
   semanticCommitScope: "deps",

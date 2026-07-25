@@ -32,7 +32,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # release-drafter / commit-check.toml と同一の type 語彙に揃える
+          # release-please-config.json / commit-check.toml と同一の type 語彙に揃える
           types: |
             feat
             fix

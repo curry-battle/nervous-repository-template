@@ -12,17 +12,19 @@
 
 ## type 語彙（Single Source of Truth）
 
-| type | リリースノートの章 | semver |
+| type | CHANGELOG の章 | semver |
 |---|---|---|
-| `feat` | 🚀 Features | minor |
-| `fix` | 🐛 Bug Fixes | patch |
-| `perf` | ⚡ Performance | patch |
-| `refactor` | ♻️ Refactoring | patch |
-| `docs` / `test` / `build` / `ci` / `chore` / `revert` | 🧰 Maintenance | patch |
-| `feat!:` / `fix!:` / `BREAKING CHANGE:` | 💥 Breaking Changes | major |
+| `feat` | Features | minor |
+| `fix` | Bug Fixes | patch |
+| `perf` | Performance | —（次回 feat/fix に含む） |
+| `refactor` | Refactoring | —（次回 feat/fix に含む） |
+| `docs` / `test` / `build` / `ci` / `chore` / `revert` | Maintenance | —（次回 feat/fix に含む） |
+| `feat!:` / `fix!:` / `BREAKING CHANGE:` footer | — | major |
 
-- scope は任意で自由記述（`feat(api):` も可）。default semver は patch。
-- **type 語彙を変えるときは 4 箇所すべて更新**：`release-drafter.yml`(autolabeler) ／ `commit-check.toml`(allow_commit_types / allow_branch_types) ／ `pr-validation.yml`(semantic-pull-request の types)。ツールごとに設定が独立しており DRY 化できないが、**prek hook（`scripts/check-vocab-sync.sh`、当該ファイルを編集した commit でのみ発火）が 4 箇所の一致を検証**するためドリフトは検知される（CI では回さない＝毎 PR 実行は過剰なため）。
+- scope は任意で自由記述（`feat(api):` も可）。
+- Release Please は `feat:` と `fix:`（と breaking change）のみでリリースをトリガーする。`docs:` / `refactor:` 等は次回の feat/fix リリース時に CHANGELOG にまとめて含まれる。
+- **1.0.0 未満**（`bump-minor-pre-major` / `bump-patch-for-minor-pre-major` 有効時）：`feat` → patch、breaking → minor に読み替わる。1.0.0 到達後は上表どおり。
+- **type 語彙を変えるときは 3 箇所すべて更新**：`release-please-config.json`(changelog-sections) ／ `commit-check.toml`(allow_commit_types / allow_branch_types) ／ `pr-validation.yml`(semantic-pull-request の types)。ツールごとに設定が独立しており DRY 化できないが、**prek hook（`scripts/check-vocab-sync.sh`、当該ファイルを編集した commit でのみ発火）が 3 箇所の一致を検証**するためドリフトは検知される（CI では回さない＝毎 PR 実行は過剰なため）。
 
 ## 仕組み
 
@@ -30,28 +32,33 @@
    branch           commit msg       PR title         (squash で main の commit)
    feat/xxx         feat: ...        feat: ...  ──► PR title がそのまま履歴に
       │                │                │
-   commit-check     commit-check     semantic-pr     release-drafter:
-   pre-push hook    commit-msg hook  required         autolabeler が
-   (prek, local)    (prek, local)    check            PR title → label → 分類 / semver
+   commit-check     commit-check     semantic-pr     Release Please:
+   pre-push hook    commit-msg hook  required         main の Conventional Commits を
+   (prek, local)    (prek, local)    check            解析 → release PR / CHANGELOG / semver
 ```
 
 - **commit-check**：branch 名は pre-push hook、commit message は commit-msg hook で検証（ともに prek、ローカルのみ）。CI では検証しない（branch 名は squash で main に残らずリリースノートにも影響しないため、CI で必須化するほどの保護対象ではない）。
-- **release-drafter**：分類キーは「ラベル」。`autolabeler` が PR title から `feat:` → `feature` ラベルを付与し、categories と version-resolver がラベルで分類し semver を判定する。
+- **Release Please**：分類キーは「コミットメッセージの type prefix」。main へのコミット履歴から Conventional Commits を解析し、release PR の作成・CHANGELOG 生成・semver 判定を自動で行う（ラベル不要）。
 
 ## リリースの流れ
 
 1. Conventional な title の PR を `main` に **Squash** マージ
-2. `release-drafter` が push:main で **ドラフト Release** を更新（version / notes を算出）
-3. ドラフトを **publish** → その瞬間に tag（`v$RESOLVED_VERSION`）が打たれる
+2. Release Please が push:main で **release PR** を作成/更新（CHANGELOG・version bump を含む）
+3. release PR を **マージ** → GitHub Release と tag（`v$VERSION`）が作成される
+4. release 作成を受けて同一ワークフロー内の **publish job** が起動（npm publish 等）
 
-> 初回だけ既存 tag が無いと基準を取れないので、手動で `v0.1.0` を作る。
+> `.release-please-manifest.json` が現在バージョンを保持する。初回は手動で設定する。
+
+### GITHUB_TOKEN の制約と publish の統合
+
+GITHUB_TOKEN で Release Please が作成した GitHub Release は `on: release` イベントを発火しない（GitHub の仕様: GITHUB_TOKEN 由来のイベントは別ワークフローをトリガーしない）。そのため publish は `release.yml` 内の後続 job として実装し、`release_created` output で制御する。GitHub App トークンを使えば別ワークフローへの分離も可能だが、単一ワークフロー構成の方がシンプル。
 
 ## サプライチェーン対策
 
 ### 依存更新（Renovate）
 
 - **依存更新（`renovate.json5`）**：cooldown（`minimumReleaseAge: 7d` + `internalChecksFilter: strict`、major は 14d）／ `pinDigests` で Actions と hook を SHA 維持 ／ `automerge: false`（人がレビュー）／ 脆弱性のみ cooldown なしで早期取り込み。
-- **Renovate は Mend ホスト型 App 前提**。`GITHUB_TOKEN` の self-hosted だと Renovate PR が CI/autolabeler を発火しない。
+- **Renovate は Mend ホスト型 App 前提**。`GITHUB_TOKEN` の self-hosted だと Renovate PR が CI を発火しない。
 - **依存更新 PR ≒ 安全**：CI は依存の install/build/test をしない（hook と mise は CI 非実行）。実行され得るのは `uses:` の Action のみで、cooldown、最小権限、secret なしで緩和済み。アプリコードを足して CI で依存を実行し始めたら別途要対策。
 
 ### 依存の監査（cargo-deny / trivy / pnpm audit）
@@ -102,18 +109,18 @@
 
 ## 運用上の注意
 
-`autolabeler` は **ラベルを加算するだけで、外さない**（title 編集に再反応はするが加算のまま）。
-
-> PR title の type を後から書き換えたら（例 `feat:`→`fix:`）、**古いラベルを手動で外す**。
-
-pin している release-drafter v6 は `categories[].exclusive` 非対応のため、二重分類は **autolabeler の type 正規表現を排他化**して防いでいる（type 規則は `!` を含めず、`feat!:`/`fix!:` は breaking のみに一致）。例外として `feat:` + 本文 `BREAKING CHANGE` フッター併用時は feature+breaking の二重ラベルになり得る（semver は major で正しく、表示のみ重複）。なお stale ラベルを放置すると version-resolver が最大を採って semver がズレる点は同様に手動対応。
+- Release Please は `feat:` と `fix:`（と breaking change）のみでリリースをトリガーする。`docs:` / `refactor:` 等だけのコミットが続いてもリリースは作られず、次の feat/fix 時に CHANGELOG にまとめて含まれる。
+- `release-please-config.json` の `release-type` はテンプレート利用先のプロジェクト種別に合わせて差し替える（`node` / `python` / `rust` 等）。テンプレート本体は `simple`（`version.txt` と CHANGELOG.md を管理）。
+- `.release-please-manifest.json` は Release Please が release PR で自動更新する。手動編集は初期バージョン設定時のみ。
+- **release PR と branch protection の注意**：GITHUB_TOKEN で作成された release PR は `on: pull_request` ワークフローを発火しない（`on: release` と同じ GitHub の仕様）。required status check を設定している場合、release PR の check が "expected" のまま残りマージ不能になる。対策: (1) release PR の check を exempt にする、(2) GitHub App / PAT トークンで release PR を作成する、(3) release PR を手動 close → reopen して CI を発火させる。
 
 ## ファイル一覧
 
 | ファイル | 役割 |
 |---|---|
-| `.github/release-drafter.yml` | categories / autolabeler / version-resolver |
-| `.github/workflows/release-drafter.yml` | push:main でドラフト更新、PR で autolabel |
+| `release-please-config.json` | Release Please の設定（release-type / changelog-sections）。テンプレートでは `simple`、利用先で `node` / `python` / `rust` 等に差し替える |
+| `.release-please-manifest.json` | 現在バージョンの記録。Release Please が release PR で自動更新 |
+| `.github/workflows/release.yml` | push:main で Release Please を実行し release PR を管理。release 作成後に publish job を起動 |
 | `.github/workflows/pr-validation.yml` | PR の必須チェック（PR title / Actions・hook の pin 検証 / aqua-checksums 整合 / pnpm-aqua-sync / Docker 検証）。aqua-exec を伴う 5 ジョブは `security-audit.yml` に分離。branch 名チェックは廃止済み |
 | `.github/workflows/security-audit.yml` | aqua-exec 5 ジョブ（gha-lint / gitleaks / cargo-deny / trivy / pnpm-audit）。`pull_request` では base-branch overlay でツール差し替えを防ぎ、`push: main` でも実行して bump の post-merge 検証を行う |
 | `.github/workflows/aqua-update-checksum.yml` | Renovate の aqua.yaml 更新 PR で `aqua-checksums.json` を自動再生成（actor=renovate[bot] + paths ガード） |
@@ -123,22 +130,10 @@ pin している release-drafter v6 は `categories[].exclusive` 非対応のた
 | `mise.toml` / `mise.lock` | 開発者の手元で aqua バイナリを bootstrap する用途のみ（CLI ツール本体は `aqua.yaml` で管理） |
 | `aqua.yaml` / `aqua-checksums.json` | CI/ローカル共通の CLI ツール（prek / pinact / ghalint / gitleaks / cargo-deny / trivy / pnpm）の version・checksum 固定の唯一の SoT。hadolint は `.pre-commit-config.yaml` の remote hook (SHA-pinned rev) で取得し aqua には載せない |
 | `.github/CODEOWNERS` | `aqua.yaml` / `aqua-checksums.json` / `.github/workflows/` / `.github/actions/` を maintainer レビュー対象に（branch protection の "Require review from Code Owners" と併用。CI/provisioning と guard を変える PR を maintainer ゲートに通す） |
-| `create-labels.sh` | autolabeler 用ラベルの作成/更新 |
-| `scripts/check-*.sh` | CI と prek が共有する検査（hook rev / Docker digest / pnpm-aqua sync の静的検証） |
+| `scripts/check-*.sh` | CI と prek が共有する検査（hook rev / Docker digest / pnpm-aqua sync / vocab sync の静的検証） |
 | `examples/docker-node/` | サンプル（Node + pnpm + TypeScript。`pnpm-lock.yaml`・corepack `packageManager` 固定、`pnpm-workspace.yaml` で supply-chain 設定、multi-stage(tsc build) + digest 固定 Dockerfile + compose）。`docker` / `pnpm audit` ジョブの検証対象。README あり |
 | `examples/docker-rust/` | サンプル（Docker + Rust。`Cargo.lock` 固定、`cargo build --locked --frozen`、`deny.toml`(cargo-deny)、multi-stage(cargo fetch→offline build→distroless) + digest 固定 Dockerfile + compose）。`docker` / `cargo-deny` / `trivy` ジョブの検証対象。README あり |
 
-## ラベル作成
-
-`autolabeler` 用ラベルを [`create-labels.sh`](../create-labels.sh)（要 `gh`）で作る。`--force` で冪等。
-
-```bash
-bash create-labels.sh                 # カレントリポジトリ
-REPO=owner/name bash create-labels.sh # 指定
-```
-
-> ラベル名は `release-drafter.yml` と一致させること。特に `feat:` → ラベルは **`feature`**。
-
 ## 参考
 
-[release-drafter](https://github.com/release-drafter/release-drafter) ／ [commit-check](https://github.com/commit-check/commit-check) ／ [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) ／ [pinact](https://github.com/suzuki-shunsuke/pinact) ／ [Renovate](https://docs.renovatebot.com/)（[cooldown](https://docs.renovatebot.com/key-concepts/minimum-release-age/)）／ [mise](https://mise.jdx.dev/) ／ [prek](https://github.com/j178/prek) ／ [Conventional Commits](https://www.conventionalcommits.org/) ／ [Conventional Branch](https://conventional-branch.github.io/)
+[Release Please](https://github.com/googleapis/release-please) ／ [release-please-action](https://github.com/googleapis/release-please-action) ／ [commit-check](https://github.com/commit-check/commit-check) ／ [action-semantic-pull-request](https://github.com/amannn/action-semantic-pull-request) ／ [pinact](https://github.com/suzuki-shunsuke/pinact) ／ [Renovate](https://docs.renovatebot.com/)（[cooldown](https://docs.renovatebot.com/key-concepts/minimum-release-age/)）／ [mise](https://mise.jdx.dev/) ／ [prek](https://github.com/j178/prek) ／ [Conventional Commits](https://www.conventionalcommits.org/) ／ [Conventional Branch](https://conventional-branch.github.io/)
