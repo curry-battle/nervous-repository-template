@@ -94,7 +94,7 @@ jobs:
           persist-credentials: false
       - uses: aquaproj/aqua-installer@11dd79b4e498d471a9385aa9fb7f62bb5f52a73c # v4.0.4
         with:
-          aqua_version: v2.60.1
+          aqua_version: v2.64.0
       # aqua v2 に --check フラグは無いので、再生成 → git diff で drift を検出する。
       # -prune は update-checksum-action 側と揃え、未使用 checksum の残存も検出する。
       - name: Verify aqua-checksums.json is up to date
