@@ -1,6 +1,6 @@
 # サンプル Dockerfile（pnpm + TypeScript / multi-stage / 実アプリに差し替える前提）。
 # ベースイメージは tag + full digest で固定（CI の pin-docker が強制 / Renovate が digest を更新）。
-FROM node:22-alpine@sha256:9385cd9f3001dfc3431e8ead12c43e9e1f87cc1b9b5c6cfd0f73865d405b27c4 AS base
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
