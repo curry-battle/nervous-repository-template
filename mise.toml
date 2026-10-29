@@ -12,7 +12,7 @@
 # bootstrap は mise core registry の "aqua" を使用 (mise.lock 上は github:aquaproj/aqua に解決される)。
 
 [tools]
-aqua = "2.60.1"
+aqua = "v2.65.2"
 
 [settings]
 # bootstrap (aqua 1 本) を checksum 固定する。新規セットアップ時は
